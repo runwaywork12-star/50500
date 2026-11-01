@@ -1,0 +1,293 @@
+.collection {
+  --collection-card: #11151c;
+  --collection-text: #f3f5f8;
+  --collection-muted: #adb7c5;
+  --collection-border: #29313c;
+  --collection-stage: radial-gradient(ellipse at 50% 48%, #343b46 0%, #1c222b 48%, #11151c 86%);
+  --collection-glow: rgba(139, 149, 163, 0.14);
+  --collection-accent: #ffad78;
+  --collection-button: #202833;
+  padding-block: clamp(3rem, 6vw, 5rem);
+  color: var(--collection-text);
+}
+
+:global(.theme-light) .collection {
+  --collection-card: #fff;
+  --collection-text: #1b2533;
+  --collection-muted: #526074;
+  --collection-border: #d8dfe7;
+  --collection-stage: radial-gradient(ellipse at 50% 48%, #fff 0%, #f1f4f7 60%, #e9eef3 100%);
+  --collection-glow: rgba(55, 65, 81, 0.1);
+  --collection-accent: #a84106;
+  --collection-button: #edf1f5;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(1.5rem, 3.4vw, 3.5rem);
+}
+
+.matFeature {
+  min-width: 0;
+}
+
+.matLink {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 8px;
+}
+
+.matVisual {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: clamp(340px, 36vw, 480px);
+  /* No white canvas, card, border or clipping around the mat. */
+}
+
+.matVisual::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 8% -2%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, var(--collection-glow) 0%, transparent 72%);
+  pointer-events: none;
+}
+
+.matImage {
+  object-fit: contain;
+  padding: 8px;
+  filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.24));
+  transition: transform 300ms ease;
+}
+
+.matLink:hover .matImage {
+  transform: translateY(-4px);
+}
+
+.matCopy {
+  position: relative;
+  margin-top: 20px;
+  padding-inline: 12px;
+}
+
+.eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--collection-muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.eyebrowDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-2);
+}
+
+.matTitle {
+  margin-top: 8px;
+  color: var(--collection-text);
+  font-size: clamp(23px, 2.2vw, 30px);
+  font-weight: 700;
+  line-height: 1.65;
+}
+
+.matDescription {
+  margin-top: 6px;
+  max-width: 470px;
+  color: var(--collection-muted);
+  font-size: 14px;
+  line-height: 1.95;
+}
+
+.matCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  color: var(--collection-accent);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.8;
+}
+
+.arrow {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  transition: transform 200ms ease;
+}
+
+.matLink:hover .arrow {
+  transform: translateX(-4px);
+}
+
+.accessories {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.accessoryCard {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  border: 1px solid var(--collection-border);
+  border-radius: 20px;
+  background: var(--collection-card);
+  color: var(--collection-text);
+  text-decoration: none;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.06);
+  transition: border-color 200ms ease, transform 200ms ease;
+}
+
+.accessoryCard:hover {
+  transform: translateY(-3px);
+  border-color: var(--accent-2);
+}
+
+.accessoryImage {
+  position: relative;
+  flex: none;
+  width: 100%;
+  height: clamp(175px, 15vw, 212px);
+  border-radius: 19px 19px 0 0;
+  background: var(--collection-stage);
+}
+
+.productImage {
+  object-fit: contain;
+  padding: 14px 18px;
+  filter: drop-shadow(0 9px 12px rgba(0, 0, 0, 0.16));
+  transition: transform 250ms ease;
+}
+
+.accessoryCard:hover .productImage {
+  transform: translateY(-3px);
+}
+
+.accessoryBody {
+  /* This is an ordinary block BELOW the image, never an overlay. */
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding: 15px 17px 16px;
+  border-top: 1px solid var(--collection-border);
+  border-radius: 0 0 19px 19px;
+  background: var(--collection-card);
+}
+
+.category {
+  color: var(--collection-muted);
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.productTitle {
+  min-height: 50px;
+  margin-top: 5px;
+  color: var(--collection-text);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+.productFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.price {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 5px;
+  color: var(--collection-text);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.65;
+}
+
+.unit {
+  color: var(--collection-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.cardArrow {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--collection-button);
+  color: var(--collection-accent);
+}
+
+.cardArrow svg {
+  width: 17px;
+  height: 17px;
+}
+
+.accessoryCard:focus-visible,
+.matLink:focus-visible {
+  outline: 3px solid var(--accent-2);
+  outline-offset: 5px;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 30px;
+  }
+  .matFeature {
+    max-width: 620px;
+    width: 100%;
+    margin-inline: auto;
+  }
+  .matVisual {
+    height: clamp(300px, 62vw, 440px);
+  }
+  .matCopy { text-align: center; }
+  .eyebrow, .matCta { justify-content: center; }
+  .matDescription { margin-inline: auto; }
+  .accessoryImage { height: clamp(160px, 32vw, 250px); }
+  .productTitle { min-height: 27px; }
+}
+
+@media (max-width: 480px) {
+  .accessories { gap: 12px; }
+  .accessoryCard { border-radius: 16px; }
+  .accessoryImage { height: 166px; border-radius: 15px 15px 0 0; }
+  .productImage { padding: 12px; }
+  .accessoryBody { padding: 12px; border-radius: 0 0 15px 15px; }
+  .productTitle { min-height: 48px; font-size: 13px; line-height: 1.85; }
+  .price { font-size: 14px; gap: 3px; }
+  .unit { font-size: 10px; }
+  .cardArrow { width: 28px; height: 28px; border-radius: 8px; }
+  .matVisual { height: 300px; }
+  .matDescription { font-size: 13px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .accessoryCard, .productImage, .matImage, .arrow { transition: none; }
+}
