@@ -1,0 +1,360 @@
+/* ============================================================
+   "نگاه نزدیک‌تر" product spotlight — exact composition of the
+   supplied reference: warm charcoal panel, copy on the left,
+   mat photo on the right with floating badges.
+   ============================================================ */
+
+.section {
+  --sp-panel: radial-gradient(120% 130% at 82% 18%, #2a1a12 0%, #17120f 42%, #0b0b0d 100%);
+  --sp-border: rgba(255, 255, 255, 0.07);
+  --sp-ink: #ffffff;
+  --sp-soft: #b9b2ad;
+  --sp-row: rgba(255, 255, 255, 0.09);
+  --sp-icon-bg: rgba(255, 107, 26, 0.1);
+  --sp-icon-border: rgba(255, 138, 58, 0.32);
+  --sp-icon-color: #ff8a3a;
+  --sp-badge-bg: rgba(12, 10, 10, 0.55);
+  --sp-badge-border: rgba(255, 138, 58, 0.32);
+  --sp-badge-text: #ffc79e;
+  --sp-ghost-bg: rgba(255, 255, 255, 0.06);
+  --sp-ghost-border: rgba(255, 255, 255, 0.14);
+  position: relative;
+  padding-block: clamp(2.5rem, 5vw, 4.5rem);
+}
+
+:global(.theme-light) .section {
+  --sp-panel: radial-gradient(120% 130% at 82% 18%, #fff6ee 0%, #fbf7f2 45%, #f5f1ea 100%);
+  --sp-border: #e9e1d6;
+  --sp-ink: #17181c;
+  --sp-soft: #5c6069;
+  --sp-row: #e4dbcf;
+  --sp-icon-bg: #fff1e6;
+  --sp-icon-border: rgba(240, 90, 10, 0.3);
+  --sp-icon-color: #e35c07;
+  --sp-badge-bg: rgba(15, 12, 10, 0.78);
+  --sp-badge-border: rgba(255, 138, 58, 0.45);
+  --sp-badge-text: #ffd2b0;
+  --sp-ghost-bg: rgba(23, 24, 28, 0.04);
+  --sp-ghost-border: rgba(23, 24, 28, 0.14);
+}
+
+.panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: clamp(20px, 2vw, 30px);
+  border: 1px solid var(--sp-border);
+  background: var(--sp-panel);
+  box-shadow: 0 40px 90px -60px rgba(0, 0, 0, 0.85);
+}
+
+/* subtle warm glow behind the copy */
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(48% 60% at 24% 42%, rgba(255, 107, 26, 0.1) 0%, transparent 70%),
+    radial-gradient(40% 50% at 88% 88%, rgba(255, 107, 26, 0.07) 0%, transparent 72%);
+}
+
+.grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: clamp(1.25rem, 2.2vw, 2.25rem);
+  padding: clamp(1rem, 1.6vw, 1.5rem);
+}
+
+/* ---------- media (right in RTL) ---------- */
+.media {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: clamp(16px, 1.5vw, 22px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0d0f13;
+  min-height: clamp(320px, 39vw, 560px);
+}
+.mediaImg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 600ms ease;
+}
+.media:hover .mediaImg {
+  transform: scale(1.03);
+}
+.mediaShade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.05) 45%, transparent 70%),
+    linear-gradient(to left, rgba(0, 0, 0, 0.28) 0%, transparent 45%);
+  pointer-events: none;
+}
+
+.topBadge {
+  position: absolute;
+  top: 1rem;
+  inset-inline-start: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.42rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(10, 10, 12, 0.62);
+  backdrop-filter: blur(10px);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.topBadgeDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff7a1a;
+  box-shadow: 0 0 8px 2px rgba(255, 122, 26, 0.85);
+}
+
+.productCard {
+  position: absolute;
+  bottom: 1rem;
+  inset-inline-start: 1rem;
+  padding: 0.6rem 1rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(12, 12, 14, 0.72);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 14px 30px -18px rgba(0, 0, 0, 0.9);
+  text-align: start;
+}
+.productCardTop {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: #b9b3ad;
+  direction: ltr;
+}
+.productCardTop b {
+  color: #ffb27a;
+  font-weight: 800;
+}
+.productCardTitle {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+/* ---------- copy (left in RTL) ---------- */
+.copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  min-width: 0;
+  padding: clamp(0.4rem, 1vw, 1.1rem) clamp(0.2rem, 1vw, 1.25rem);
+  text-align: right;
+}
+
+.eyebrow {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--sp-badge-border);
+  background: var(--sp-badge-bg);
+  color: var(--sp-badge-text);
+  font-size: 0.7rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.eyebrowEn {
+  font-family: Arial, Helvetica, sans-serif;
+  letter-spacing: 0.14em;
+  direction: ltr;
+  opacity: 0.85;
+}
+.eyebrowSep {
+  opacity: 0.5;
+}
+
+.heading {
+  margin-top: clamp(0.9rem, 1.6vw, 1.4rem);
+  font-size: clamp(1.6rem, 3vw, 2.9rem);
+  font-weight: 900;
+  line-height: 1.55;
+  letter-spacing: -0.01em;
+  color: var(--sp-ink);
+}
+.accent {
+  color: #ff6b1a;
+  white-space: nowrap;
+}
+
+.lede {
+  margin-top: clamp(0.7rem, 1.2vw, 1rem);
+  max-width: 34rem;
+  font-size: clamp(0.82rem, 1vw, 0.95rem);
+  line-height: 2.1;
+  color: var(--sp-soft);
+}
+
+.rows {
+  width: 100%;
+  margin-top: clamp(1.1rem, 2vw, 1.75rem);
+  border-top: 1px solid var(--sp-row);
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding-block: clamp(0.75rem, 1.3vw, 1rem);
+  border-bottom: 1px solid var(--sp-row);
+}
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+}
+.rowTitle {
+  display: block;
+  font-size: clamp(0.83rem, 0.95vw, 0.93rem);
+  font-weight: 800;
+  line-height: 1.8;
+  color: var(--sp-ink);
+}
+.rowDesc {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: clamp(0.72rem, 0.82vw, 0.8rem);
+  line-height: 1.95;
+  color: var(--sp-soft);
+}
+
+.iconTile {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  border: 1px solid var(--sp-icon-border);
+  background: var(--sp-icon-bg);
+  color: var(--sp-icon-color);
+}
+.iconTile svg {
+  width: 18px;
+  height: 18px;
+}
+
+.actions {
+  margin-top: clamp(1.1rem, 2vw, 1.6rem);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.7rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ff5a05, #ff8a2b);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 900;
+  box-shadow: 0 14px 30px -14px rgba(255, 90, 0, 0.95);
+  transition: transform 180ms ease, filter 180ms ease;
+}
+.primary:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+}
+.primaryArrow {
+  width: 16px;
+  height: 16px;
+}
+.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--sp-ghost-border);
+  background: var(--sp-ghost-bg);
+  color: var(--sp-ink);
+  font-size: 0.85rem;
+  font-weight: 800;
+  transition: transform 180ms ease, border-color 180ms ease;
+}
+.ghost:hover {
+  transform: translateY(-2px);
+  border-color: #ff6b1a;
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 1023px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+  .media {
+    order: 1;
+    min-height: 300px;
+  }
+  .copy {
+    order: 2;
+    text-align: right;
+  }
+  .heading {
+    font-size: clamp(1.5rem, 4.6vw, 2.1rem);
+  }
+  .eyebrow {
+    align-self: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .grid {
+    padding: 0.65rem;
+  }
+  .media {
+    min-height: 240px;
+  }
+  .lede {
+    font-size: 0.78rem;
+    line-height: 2;
+  }
+  .iconTile {
+    width: 36px;
+    height: 36px;
+  }
+  .row {
+    gap: 0.65rem;
+  }
+  .actions {
+    width: 100%;
+  }
+  .primary,
+  .ghost {
+    flex: 1;
+    padding-inline: 1rem;
+    font-size: 0.78rem;
+  }
+}

@@ -1,0 +1,150 @@
+{
+  "viewports": [
+    {
+      "width": 1887,
+      "theme": "dark",
+      "sectionOverflow": false,
+      "titleOnRight": true,
+      "headerHeight": 144,
+      "productsFromTop": 223,
+      "tabOverflow": false,
+      "viewAllHref": "#/products?sort=popular",
+      "brokenImages": 0,
+      "selectedTabs": 1
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "sectionOverflow": false,
+      "titleOnRight": true,
+      "headerHeight": 144,
+      "productsFromTop": 223,
+      "tabOverflow": false,
+      "viewAllHref": "#/products?sort=popular",
+      "brokenImages": 0,
+      "selectedTabs": 1
+    },
+    {
+      "width": 1024,
+      "theme": "dark",
+      "sectionOverflow": false,
+      "titleOnRight": true,
+      "headerHeight": 129,
+      "productsFromTop": 208,
+      "tabOverflow": false,
+      "viewAllHref": "#/products?sort=popular",
+      "brokenImages": 0,
+      "selectedTabs": 1
+    },
+    {
+      "width": 768,
+      "theme": "dark",
+      "sectionOverflow": false,
+      "titleOnRight": false,
+      "headerHeight": 203,
+      "productsFromTop": 272,
+      "tabOverflow": false,
+      "viewAllHref": "#/products?sort=popular",
+      "brokenImages": 0,
+      "selectedTabs": 1
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "sectionOverflow": false,
+      "titleOnRight": false,
+      "headerHeight": 245,
+      "productsFromTop": 314,
+      "tabOverflow": false,
+      "viewAllHref": "#/products?sort=popular",
+      "brokenImages": 0,
+      "selectedTabs": 1
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "sectionOverflow": false,
+      "titleOnRight": false,
+      "headerHeight": 271,
+      "productsFromTop": 340,
+      "tabOverflow": false,
+      "viewAllHref": "#/products?sort=popular",
+      "brokenImages": 0,
+      "selectedTabs": 1
+    },
+    {
+      "width": 1887,
+      "theme": "light",
+      "sectionOverflow": false,
+      "titleOnRight": true,
+      "headerHeight": 144,
+      "productsFromTop": 223,
+      "tabOverflow": false,
+      "viewAllHref": "#/products?sort=popular",
+      "brokenImages": 0,
+      "selectedTabs": 1
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "sectionOverflow": false,
+      "titleOnRight": true,
+      "headerHeight": 144,
+      "productsFromTop": 223,
+      "tabOverflow": false,
+      "viewAllHref": "#/products?sort=popular",
+      "brokenImages": 0,
+      "selectedTabs": 1
+    },
+    {
+      "width": 1024,
+      "theme": "light",
+      "sectionOverflow": false,
+      "titleOnRight": true,
+      "headerHeight": 129,
+      "productsFromTop": 208,
+      "tabOverflow": false,
+      "viewAllHref": "#/products?sort=popular",
+      "brokenImages": 0,
+      "selectedTabs": 1
+    },
+    {
+      "width": 768,
+      "theme": "light",
+      "sectionOverflow": false,
+      "titleOnRight": false,
+      "headerHeight": 203,
+      "productsFromTop": 272,
+      "tabOverflow": false,
+      "viewAllHref": "#/products?sort=popular",
+      "brokenImages": 0,
+      "selectedTabs": 1
+    },
+    {
+      "width": 390,
+      "theme": "light",
+      "sectionOverflow": false,
+      "titleOnRight": false,
+      "headerHeight": 245,
+      "productsFromTop": 314,
+      "tabOverflow": false,
+      "viewAllHref": "#/products?sort=popular",
+      "brokenImages": 0,
+      "selectedTabs": 1
+    },
+    {
+      "width": 320,
+      "theme": "light",
+      "sectionOverflow": false,
+      "titleOnRight": false,
+      "headerHeight": 271,
+      "productsFromTop": 340,
+      "tabOverflow": false,
+      "viewAllHref": "#/products?sort=popular",
+      "brokenImages": 0,
+      "selectedTabs": 1
+    }
+  ],
+  "interactions": "passed",
+  "browserErrors": []
+}

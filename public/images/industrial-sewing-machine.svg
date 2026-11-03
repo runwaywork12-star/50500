@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000" fill="none">
+ <defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1550" y2="1000" gradientUnits="userSpaceOnUse"><stop stop-color="#21140D"/><stop offset=".52" stop-color="#090B0F"/><stop offset="1" stop-color="#08090B"/></linearGradient>
+  <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="matrix(780 80 -190 800 120 470)" gradientUnits="userSpaceOnUse"><stop stop-color="#F5660A" stop-opacity=".3"/><stop offset="1" stop-color="#F5660A" stop-opacity="0"/></radialGradient>
+  <linearGradient id="metal" x1="300" y1="160" x2="1080" y2="680" gradientUnits="userSpaceOnUse"><stop stop-color="#707984"/><stop offset=".2" stop-color="#272D35"/><stop offset=".5" stop-color="#0C0E12"/><stop offset=".8" stop-color="#333A44"/><stop offset="1" stop-color="#111419"/></linearGradient>
+  <linearGradient id="table" x1="80" y1="700" x2="1480" y2="930" gradientUnits="userSpaceOnUse"><stop stop-color="#38312B"/><stop offset=".5" stop-color="#15171B"/><stop offset="1" stop-color="#08090B"/></linearGradient>
+  <filter id="shadow" x="80" y="100" width="1350" height="850" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="28"/></filter>
+  <pattern id="grid" width="80" height="80" patternUnits="userSpaceOnUse"><path d="M40 0 80 40 40 80 0 40Z" stroke="#F5660A" stroke-opacity=".12"/></pattern>
+ </defs>
+ <rect width="1600" height="1000" fill="url(#bg)"/><rect width="1600" height="1000" fill="url(#glow)"/><rect width="1600" height="1000" fill="url(#grid)" opacity=".35"/>
+ <ellipse cx="730" cy="780" rx="600" ry="110" fill="#000" opacity=".65" filter="url(#shadow)"/>
+ <!-- industrial work table -->
+ <path d="M85 698 1510 650 1580 785 115 845Z" fill="url(#table)" stroke="#5B6069" stroke-opacity=".7" stroke-width="5"/><path d="M130 725 1525 678" stroke="#F5660A" stroke-opacity=".55" stroke-width="4"/>
+ <path d="M190 819 239 815 213 994 160 997ZM1320 775 1375 768 1426 983 1373 994Z" fill="#111419" stroke="#454B55" stroke-width="4"/>
+ <!-- machine body -->
+ <path d="M278 230Q278 157 350 157H989Q1060 157 1060 230V342L1008 377 981 520 930 554H755L711 506V390H356Q278 390 278 319Z" fill="url(#metal)" stroke="#939BA6" stroke-opacity=".65" stroke-width="5"/>
+ <path d="M300 232Q300 180 350 180H978Q1037 180 1037 233V322L987 351 960 497 916 530H766L733 493V368H360Q300 368 300 319Z" fill="#14181E" stroke="#4E5661" stroke-width="4"/>
+ <path d="M326 204H974Q1012 204 1012 239V279H326Z" fill="#3B424B" opacity=".6"/><path d="M326 290H1010" stroke="#7A838F" stroke-opacity=".28" stroke-width="4"/>
+ <!-- spool / thread -->
+ <path d="M780 180V112M766 111H794M780 111V75" stroke="#B3BBC5" stroke-width="7" stroke-linecap="round"/><ellipse cx="780" cy="73" rx="45" ry="14" fill="#1C222A" stroke="#F5660A" stroke-width="4"/><path d="M738 63V24Q780 8 822 24V63" fill="#7D360F" stroke="#F5660A" stroke-width="3"/><path d="M746 31Q780 20 814 31M746 42Q780 31 814 42M746 53Q780 42 814 53" stroke="#F4A26A" stroke-opacity=".8" stroke-width="4"/>
+ <!-- tension dials -->
+ <circle cx="461" cy="278" r="40" fill="#080A0D" stroke="#9AA2AD" stroke-width="6"/><circle cx="461" cy="278" r="25" fill="#2A3038" stroke="#F5660A" stroke-width="4"/><circle cx="461" cy="278" r="8" fill="#D5DAE0"/>
+ <circle cx="562" cy="278" r="40" fill="#080A0D" stroke="#9AA2AD" stroke-width="6"/><circle cx="562" cy="278" r="25" fill="#2A3038" stroke="#F5660A" stroke-width="4"/><circle cx="562" cy="278" r="8" fill="#D5DAE0"/>
+ <!-- needle arm -->
+ <path d="M711 365H933Q963 365 963 394V440H915V412H777V477H738V412H711Z" fill="url(#metal)" stroke="#858D98" stroke-width="4"/><path d="M933 411V505" stroke="#CBD0D8" stroke-width="7" stroke-linecap="round"/><path d="M921 505H945L933 528Z" fill="#D8DDE4"/><path d="M934 526V584" stroke="#F5660A" stroke-width="2"/>
+ <!-- flat machine base -->
+ <path d="M270 525Q270 497 301 497H705L746 537V624Q746 654 716 654H303Q270 654 270 621Z" fill="url(#metal)" stroke="#838B95" stroke-width="5"/><path d="M292 532Q292 518 309 518H692L724 548V611Q724 632 706 632H312Q292 632 292 612Z" fill="#090B0E"/>
+ <path d="M325 544H684M325 562H684M325 580H684M325 598H684" stroke="#AAB1BA" stroke-opacity=".23" stroke-width="3"/><circle cx="699" cy="575" r="17" fill="#272D35" stroke="#F5660A" stroke-width="4"/>
+ <!-- fabric sample under needle -->
+ <path d="M848 574 1100 583 1190 689 913 710 827 647Z" fill="#12171D" stroke="#6B737D" stroke-width="4"/><path d="M865 597 1096 606 1161 676 925 692 858 647Z" stroke="#F5660A" stroke-opacity=".5" stroke-width="3"/><path d="M877 615 1110 631M870 636 1128 652M894 656 1145 672" stroke="#F5660A" stroke-opacity=".42" stroke-width="3"/>
+ <!-- hand wheel and controls -->
+ <circle cx="356" cy="450" r="27" fill="#090B0E" stroke="#9BA3AD" stroke-width="6"/><circle cx="356" cy="450" r="10" fill="#F5660A"/><rect x="395" y="435" width="72" height="31" rx="7" fill="#151A20" stroke="#616974" stroke-width="3"/><circle cx="419" cy="450" r="5" fill="#F5660A"/><circle cx="445" cy="450" r="5" fill="#AAB1BA"/>
+ <!-- abstract warm workshop light, intentionally without baked-in text -->
+ <path d="M1125 420Q1240 370 1455 420" stroke="#F5660A" stroke-opacity=".42" stroke-width="3"/>
+ <path d="M1150 440Q1260 397 1435 440" stroke="#F7B27D" stroke-opacity=".18" stroke-width="2"/>
+</svg>

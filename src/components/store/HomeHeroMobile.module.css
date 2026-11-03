@@ -1,0 +1,152 @@
+.hero {
+  --mobile-hero-surface: #090b0f;
+  --mobile-hero-text: #f7f7f8;
+  --mobile-hero-muted: #c1c3c8;
+  overflow: hidden;
+  background: var(--mobile-hero-surface);
+  color: var(--mobile-hero-text);
+}
+
+:global(.theme-light) .hero {
+  --mobile-hero-surface: #f6f4ef;
+  --mobile-hero-text: #17191f;
+  --mobile-hero-muted: #555c67;
+}
+
+/* Keep the photograph as its own full-bleed plane, not as a faint backdrop. */
+.visual {
+  position: relative;
+  width: 100%;
+  height: clamp(218px, 41svh, 370px);
+  overflow: hidden;
+  background: #111318;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 52%;
+  animation: imageIn 650ms ease-out both;
+}
+
+.imageBlend {
+  position: absolute;
+  inset: 55% 0 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, var(--mobile-hero-surface));
+}
+
+.content {
+  width: 100%;
+  max-width: 560px;
+  margin-inline: auto;
+  padding: 0 22px 24px;
+  text-align: right;
+  animation: copyIn 420ms ease-out both;
+}
+
+.brand {
+  margin: -3px 0 6px;
+  color: var(--mobile-hero-text);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 25px;
+  font-weight: 900;
+  letter-spacing: 0.025em;
+  line-height: 1.2;
+}
+
+.brand span,
+.highlight {
+  color: #e85e14;
+}
+
+.heading {
+  margin: 0;
+  color: var(--mobile-hero-text);
+  font-size: clamp(1.27rem, 5.25vw, 1.58rem);
+  font-weight: 850;
+  line-height: 1.62;
+  text-wrap: balance;
+}
+
+.description {
+  display: -webkit-box;
+  max-width: 520px;
+  margin: 7px 0 0;
+  overflow: hidden;
+  color: var(--mobile-hero-muted);
+  font-size: 12.5px;
+  line-height: 1.8;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.primary {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 13px;
+  padding: 10px 17px;
+  border: 0;
+  border-radius: 11px;
+  background: #c84b0d;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.primary:hover {
+  background: #ad3d08;
+  transform: translateY(-1px);
+}
+
+.primary:focus-visible {
+  outline: 2px solid #f48b45;
+  outline-offset: 3px;
+}
+
+/* The desk/tablet composition remains untouched; use this compact composition only on phones. */
+@media (min-width: 768px) {
+  .hero { display: none; }
+}
+
+@media (max-width: 359px) {
+  .visual { height: clamp(205px, 37svh, 250px); }
+  .content { padding-inline: 17px; padding-bottom: 18px; }
+  .brand { font-size: 22px; }
+  .heading { font-size: 1.22rem; }
+  .description { font-size: 12px; }
+  .primary { margin-top: 10px; }
+}
+
+@media (min-width: 640px) and (max-width: 767px) {
+  .visual { height: min(46svh, 430px); }
+  .image { object-position: center 48%; }
+  .content { padding-bottom: 30px; }
+  .brand { font-size: 29px; }
+  .heading { max-width: 620px; font-size: clamp(1.7rem, 4vw, 2rem); }
+  .description { font-size: 14px; }
+}
+
+@keyframes imageIn {
+  from { opacity: 0.8; transform: scale(1.015); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes copyIn {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .image,
+  .content { animation: none; }
+  .primary { transition: none; }
+}

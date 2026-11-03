@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100" fill="none">
+ <defs>
+  <linearGradient id="bg" x1="120" y1="80" x2="1490" y2="1050" gradientUnits="userSpaceOnUse"><stop stop-color="#1c2026"/><stop offset=".54" stop-color="#090b0f"/><stop offset="1" stop-color="#251006"/></linearGradient>
+  <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="matrix(820 220 -410 1520 125 310)" gradientUnits="userSpaceOnUse"><stop stop-color="#ff6817" stop-opacity=".28"/><stop offset="1" stop-color="#ff6817" stop-opacity="0"/></radialGradient>
+  <linearGradient id="surface" x1="340" y1="250" x2="1270" y2="940" gradientUnits="userSpaceOnUse"><stop stop-color="#333941"/><stop offset=".5" stop-color="#171b21"/><stop offset="1" stop-color="#0b0d11"/></linearGradient>
+  <linearGradient id="rim" x1="360" y1="240" x2="1260" y2="930" gradientUnits="userSpaceOnUse"><stop stop-color="#8b929b" stop-opacity=".65"/><stop offset=".5" stop-color="#4d535c" stop-opacity=".6"/><stop offset="1" stop-color="#ff6817" stop-opacity=".3"/></linearGradient>
+  <pattern id="grid" width="86" height="86" patternUnits="userSpaceOnUse"><path d="M43 0 86 43 43 86 0 43Z" stroke="#fff" stroke-opacity=".025"/><path d="M43 13 73 43 43 73 13 43Z" stroke="#ff6817" stroke-opacity=".035"/></pattern>
+  <filter id="shadow" x="120" y="120" width="1370" height="930" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="36"/></filter>
+ </defs>
+ <rect width="1600" height="1100" fill="url(#bg)"/><rect width="1600" height="1100" fill="url(#glow)"/><rect width="1600" height="1100" fill="url(#grid)"/>
+ <path d="M0 0H1600V165L1320 220 1050 178 765 217 450 155 0 232V0Z" fill="#020304" fill-opacity=".74"/>
+ <path d="M96 960 210 360Q228 278 332 251L1032 208Q1130 202 1188 282L1477 810Q1498 855 1451 887L1234 1018Q1206 1033 1168 1025L205 839Q158 830 169 778L235 360" fill="#000" fill-opacity=".6" filter="url(#shadow)"/>
+ <path d="M285 255Q308 220 360 217L1030 185Q1092 182 1121 234L1390 775Q1411 818 1375 848L1190 964Q1162 982 1124 974L260 805Q214 796 226 748L285 255Z" fill="url(#rim)" stroke="#737b85" stroke-opacity=".3" stroke-width="5"/>
+ <path d="M326 276Q346 246 389 244L1011 216Q1059 214 1084 256L1341 770Q1358 800 1328 824L1181 914Q1156 930 1124 922L304 766Q269 759 279 724L326 276Z" fill="url(#surface)" stroke="#080a0e" stroke-width="16"/>
+ <path d="M376 310 1002 280 1281 773 1161 850 336 707 376 310Z" stroke="#c4cad3" stroke-opacity=".08" stroke-width="4"/>
+ <path d="M390 390 1040 356M375 475 1084 443M359 559 1127 527M344 642 1170 610" stroke="#c2c8d0" stroke-opacity=".045" stroke-width="3"/>
+ <path d="M530 302 455 725M685 294 624 754M840 287 793 783M995 280 960 812" stroke="#fff" stroke-opacity=".035" stroke-width="3"/>
+ <path d="M210 270 125 740M1240 160 1490 760" stroke="#ff6817" stroke-opacity=".45" stroke-width="3"/>
+ <circle cx="125" cy="740" r="6" fill="#ff6817"/><circle cx="1490" cy="760" r="6" fill="#ff6817"/>
+ <text x="800" y="1047" text-anchor="middle" font-family="sans-serif" font-size="25" fill="#bfc4cc" fill-opacity=".66">تصویر اصلی محصول را از پنل مدیریت بارگذاری کنید</text>
+</svg>
