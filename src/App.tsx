@@ -5,7 +5,7 @@ import { ThemeLink as Link } from "@/components/ThemeLink";
 import { Header } from "@/components/store/Header";
 import { Footer } from "@/components/store/Footer";
 import { CartProvider } from "@/lib/cart";
-import { AuthProvider } from "@/lib/auth";
+import { AuthProvider } from "@/lib/auth.tsx";
 import { SiteContentProvider, loadSiteContent, useSiteContent } from "@/lib/site-content";
 import Home from "@/pages/Home";
 import Products from "@/pages/Products";

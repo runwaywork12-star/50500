@@ -21,7 +21,7 @@ import { useCart } from "@/lib/cart";
 import { BRANDS } from "@/lib/catalog";
 import { CAR_GROUPS, POPULAR_BRANDS } from "@/data/content";
 import { useSiteContent } from "@/lib/site-content";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth.tsx";
 import { cn, fa } from "@/lib/format";
 import { img } from "@/lib/images";
 import styles from "./HeaderMega.module.css";

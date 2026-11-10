@@ -18,7 +18,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
-import { useAuth, emailIssue, normalizePhone, passwordIssue, phoneIssue } from "@/lib/auth";
+import { useAuth, emailIssue, normalizePhone, passwordIssue, phoneIssue } from "@/lib/auth.tsx";
 import { findOrders } from "@/lib/cart";
 import { ORDER_STATUSES } from "@/data/content";
 import { img } from "@/lib/images";

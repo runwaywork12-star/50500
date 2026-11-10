@@ -4,7 +4,7 @@ import { Logo } from "@/components/Logo";
 import { InstagramIcon } from "@/components/ui";
 import { CAR_GROUPS } from "@/data/content";
 import { useSiteContent } from "@/lib/site-content";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth.tsx";
 
 export function Footer() {
   const { content } = useSiteContent();

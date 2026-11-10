@@ -1,0 +1,16 @@
+*.log
+*.zip
+.DS_Store
+.env
+.env.*
+.git/
+.gitignore
+.liaraignore
+dist-smoke/
+dist/
+node_modules/
+public/raw/
+server-dist/
+server/generated/
+smoke-entry.tsx
+vite.smoke.config.ts
