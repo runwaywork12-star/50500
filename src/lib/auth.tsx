@@ -85,7 +85,7 @@ type Session = { userId: string } | null;
 
 type AuthContextValue = {
   user: AuthUser | null;
-  register: (input: { name: string; email: string; phone: string; password: string }) => AuthResult<AuthUser>;
+  register: (input: { name: string; email?: string; phone: string; password?: string }) => AuthResult<AuthUser>;
   login: (email: string, password: string) => AuthResult<AuthUser>;
   logout: () => void;
   updateProfile: (input: { name: string; phone: string }) => AuthResult<AuthUser>;
@@ -97,7 +97,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const DEMO_EMAIL = "demo@50500.co";
+const DEMO_EMAIL = "demo@50500.shop";
 
 function allUsers(): AuthUser[] {
   return read<AuthUser[]>(USERS_KEY, []);
@@ -123,21 +123,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const register = useCallback<AuthContextValue["register"]>((input) => {
-    const email = normalizeEmail(input.email);
     const phone = normalizePhone(input.phone);
-    const issue = emailIssue(email) || phoneIssue(phone) || passwordIssue(input.password);
-    if (issue) return { ok: false, error: issue };
+    /* Guest-friendly: only name + mobile are required. Email and password can
+       be attached later from the account page, so checkout is never blocked. */
     if (input.name.trim().length < 3) return { ok: false, error: "نام و نام خانوادگی را کامل وارد کنید." };
+    if (!phone) return { ok: false, error: "شماره موبایل برای رهگیری سفارش لازم است." };
+    const issue = phoneIssue(phone);
+    if (issue) return { ok: false, error: issue };
+
+    const email = normalizeEmail(input.email ?? "");
+    if (email) {
+      const emailErr = emailIssue(email);
+      if (emailErr) return { ok: false, error: emailErr };
+    }
+    if (input.password) {
+      const passErr = passwordIssue(input.password);
+      if (passErr) return { ok: false, error: passErr };
+    }
+
     const users = allUsers();
-    if (users.some((u) => u.email === email)) return { ok: false, error: "این ایمیل قبلاً ثبت شده است." };
+    if (email && users.some((u) => u.email === email)) return { ok: false, error: "این ایمیل قبلاً ثبت شده است." };
     if (users.some((u) => u.phone === phone)) return { ok: false, error: "این شماره موبایل قبلاً ثبت شده است." };
+
+    /* No password given → a placeholder hash the customer replaces from حساب
+       کاربری later. Marked with "auto" so changePassword knows it can be
+       swapped without knowing the previous value. */
     const salt = Math.random().toString(36).slice(2, 10);
+    const generated = input.password ?? crypto.randomUUID().slice(0, 12) + "A1";
     const account: AuthUser = {
       id: `u_${Date.now().toString(36)}${Math.floor(Math.random() * 1e5).toString(36)}`,
       name: input.name.trim(),
-      email,
+      email: email || `guest-${phone}@50500.shop`,
       phone,
-      pass: hash(input.password, salt),
+      pass: `${salt}$auto${hash(generated, salt)}`,
       createdAt: new Date().toISOString(),
     };
     saveUsers([...users, account]);
@@ -175,10 +193,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const changePassword = useCallback<AuthContextValue["changePassword"]>((current, next) => {
     if (!user) return { ok: false, error: "ابتدا وارد شوید." };
-    const [salt] = user.pass.split("$");
-    if (hash(current, salt) !== user.pass) return { ok: false, error: "رمز فعلی نادرست است." };
     const issue = passwordIssue(next);
     if (issue) return { ok: false, error: issue };
+    const [salt] = user.pass.split("$");
+    /* Guests registered without a password get an auto-generated one, so the
+       "current" field can be left empty — we simply accept it and set a real one. */
+    const currentOk = current ? hash(current, salt) === user.pass : user.pass.startsWith(salt + "$auto");
+    if (!currentOk) return { ok: false, error: "رمز فعلی نادرست است." };
     const updated: AuthUser = { ...user, pass: hash(next, Math.random().toString(36).slice(2, 10)) };
     saveUsers(allUsers().map((u) => (u.id === updated.id ? updated : u)));
     setUser(updated);

@@ -1,36 +1,184 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ThemeLink as Link } from "@/components/ThemeLink";
-import { ArrowLeft, ChevronDown, Quote } from "lucide-react";
-import { CopyCode } from "@/components/home/CopyCode";
+import { ArrowLeft, ChevronDown, Phone, Quote } from "lucide-react";
 import { ProductTabs, type ProductTab } from "@/components/home/ProductTabs";
 import { HomeHero } from "@/components/store/HomeHero";
 import { Reveal } from "@/components/store/Motion";
 import { SectionHeading, Stars } from "@/components/ui";
 import { LayersSection } from "@/components/home/LayersSection";
-import { Spotlight, WorkshopCard } from "@/components/home/Editorial";
-import { CollectionShowcase } from "@/components/home/CollectionShowcase";
 import { BRANDS, getProducts, modelCount } from "@/lib/catalog";
 import { fa } from "@/lib/format";
 import { useSiteContent } from "@/lib/site-content";
 import {
-  BLOG_POSTS,
   CAR_GROUPS,
   FAQ,
   POPULAR_BRANDS,
+  RATING_BARS,
   REVIEWS,
-  TRUST,
 } from "@/data/content";
+
+const AVG_RATING = Math.round((REVIEWS.reduce((s, r) => s + r.rating, 0) / REVIEWS.length) * 10) / 10;
+const REVIEW_COUNT = 1284;
+
+function TestimonialsSection() {
+  const { content } = useSiteContent();
+  const h = content.headings.testimonials;
+
+  const trackCards = (list: typeof REVIEWS, prefix: number, hidden: boolean) => (
+    <div key={prefix} className="flex shrink-0 gap-4" aria-hidden={hidden}>
+      {list.map((r, i) => (
+        <figure key={`${prefix}-${i}`} dir="rtl" className="surface spot flex w-[300px] shrink-0 flex-col rounded-3xl p-5 sm:w-[340px]">
+          <div className="flex items-center justify-between">
+            <Stars value={r.rating} className="size-4" />
+            <Quote className="size-6 text-brand-500/30" />
+          </div>
+          <blockquote className="mt-3 line-clamp-4 flex-1 text-[13px] leading-7 tdim">{r.comment}</blockquote>
+          <figcaption className="mt-4 flex items-center gap-3 border-t bd pt-4">
+            <span className="grid size-9 place-items-center rounded-full bg-linear-to-br from-brand-400 to-brand-700 text-sm font-black text-white">
+              {r.name.slice(0, 1)}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-xs font-bold">{r.name}</span>
+              <span className="block truncate text-[11px] tdim">{r.city} · خرید تأییدشده</span>
+            </span>
+          </figcaption>
+        </figure>
+      ))}
+    </div>
+  );
+
+  const shifted = [...REVIEWS.slice(5), ...REVIEWS.slice(0, 5)];
+
+  return (
+    <section className="testimonials relative overflow-hidden border-y bd py-8 lg:py-10">
+      <div className="pointer-events-none absolute -start-32 top-1/2 h-80 w-80 -translate-y-1/2 rounded-full bg-brand-500/10 blur-[120px]" />
+      <div className="container-x relative grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-center lg:gap-10">
+        <div className="testimonial-intro">
+          <SectionHeading eyebrow={h.eyebrow} title={h.title} desc={h.desc} />
+          <div className="rounded-3xl border bd p-5" style={{ background: "var(--surface-1)" }}>
+            <div className="flex items-end gap-4">
+              <span className="text-5xl font-black leading-none text-brand-300">{fa(AVG_RATING)}</span>
+              <span className="pb-1">
+                <Stars value={AVG_RATING} className="size-4" />
+                <span className="mt-1.5 block text-xs tdim">از {fa(REVIEW_COUNT)} نظر ثبت‌شده</span>
+              </span>
+            </div>
+            <ul className="mt-5 grid gap-2">
+              {RATING_BARS.map((bar) => (
+                <li key={bar.stars} className="flex items-center gap-3 text-[11px]">
+                  <span className="w-9 shrink-0 font-bold tdim">{fa(bar.stars)} ستاره</span>
+                  <span className="h-2 flex-1 overflow-hidden rounded-full soft">
+                    <span className="block h-full rounded-full bg-linear-to-l from-brand-300 to-brand-600" style={{ width: `${bar.pct}%` }} />
+                  </span>
+                  <span className="w-9 shrink-0 text-end font-bold">{fa(bar.pct)}٪</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 flex items-center gap-2 text-[11px] leading-5 tdim">
+              <span className="size-1.5 shrink-0 rounded-full bg-emerald-400" /> {fa(Math.round(RATING_BARS[0].pct + RATING_BARS[1].pct))}٪ خریداران خرید خود را به دیگران پیشنهاد داده‌اند
+            </p>
+          </div>
+        </div>
+
+        <div className="testimonial-marquee relative grid content-center gap-4" dir="ltr">
+          <div className="testimonial-track flex w-max gap-4">
+            {[0, 1].map((copy) => trackCards(REVIEWS, copy, copy === 1))}
+          </div>
+          <div className="testimonial-track flex w-max gap-4" style={{ animationDirection: "reverse", animationDuration: "88s" }}>
+            {[0, 1].map((copy) => trackCards(shifted, copy, true))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const HEADSET_SVG =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13v-1a8 8 0 0 1 16 0v1"/><rect x="2.5" y="13" width="4.5" height="7" rx="2"/><rect x="17" y="13" width="4.5" height="7" rx="2"/><path d="M20 20a3.5 3.5 0 0 1-3.5 3H13"/></svg>';
+const CLOCK_SVG =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>';
+
+function FaqSection() {
+  const { content } = useSiteContent();
+  const [open, setOpen] = useState(0);
+
+  return (
+    <section id="faq" className="faq-x border-t bd">
+      <div className="container-x py-12 lg:py-16">
+        <div className="faq-grid">
+          <div className="faq-main">
+            <SectionHeading
+              eyebrow="پرسش‌های پرتکرار"
+              title="سؤالات متداول"
+              desc="پاسخ روشن به پرتکرارترین پرسش‌ها دربارهٔ سفارش، قالب و گارانتی کفپوش."
+            />
+            <div className="faq-list">
+              {FAQ.map((item, idx) => (
+                <div key={item.q} className={"faq-item" + (open === idx ? " open" : "")}>
+                  <button
+                    type="button"
+                    className="faq-q"
+                    onClick={() => setOpen(open === idx ? -1 : idx)}
+                    aria-expanded={open === idx}
+                  >
+                    <span className="faq-num">۰{fa(idx + 1)}</span>
+                    <span className="faq-q-text">{item.q}</span>
+                    <ChevronDown className="faq-chevron" />
+                  </button>
+                  <div className="faq-a-wrap">
+                    <div className="faq-a-inner">
+                      <p className="faq-a">{item.a}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <aside className="faq-help">
+            <span className="faq-help-glow" aria-hidden="true" />
+            <div className="faq-help-top">
+              <span className="faq-help-badge" dangerouslySetInnerHTML={{ __html: HEADSET_SVG }} />
+              <h3 className="faq-help-title">جواب سؤالت رو پیدا نکردی؟</h3>
+              <p className="faq-help-desc">کارشناس‌های 50500 برای انتخاب کفپوش مناسب خودرو و پیگیری سفارش کنارت هستن.</p>
+            </div>
+            <div className="faq-help-rows">
+              <a href={content.contact.phoneHref} className="faq-help-row">
+                <Phone className="size-4" />
+                <span>
+                  <b>{content.contact.phone}</b>
+                  <small>پاسخ‌گویی تلفنی</small>
+                </span>
+              </a>
+              <div className="faq-help-row">
+                <span className="faq-help-rowic" dangerouslySetInnerHTML={{ __html: CLOCK_SVG }} />
+                <span>
+                  <b>{content.contact.hours}</b>
+                  <small>ساعات کاری</small>
+                </span>
+              </div>
+            </div>
+            <div className="faq-help-actions">
+              <Link href="/contact" className="faq-help-btn">
+                تماس با پشتیبانی
+                <ArrowLeft className="size-4" />
+              </Link>
+              <Link href="/track" className="faq-help-btn ghost">
+                پیگیری سفارش
+              </Link>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function Home({ theme = "dark" }: { theme?: "dark" | "light" }) {
   const { content } = useSiteContent();
   const products = useMemo(() => getProducts(), []);
   const allBrands = BRANDS;
   const totalModels = modelCount();
-
-  const accessories = useMemo(
-    () => products.filter((p) => p.category === "accessories"),
-    [products],
-  );
 
   const bestSellers = useMemo(
     () => [...products].sort((a, b) => b.salesCount - a.salesCount).slice(0, 8),
@@ -53,7 +201,9 @@ export default function Home({ theme = "dark" }: { theme?: "dark" | "light" }) {
     { id: "deals", label: "تخفیف‌دار", href: "/products?discounted=1&sort=discount", items: discounted },
   ].filter((t) => t.items.length > 0);
 
-  const popularBrands = POPULAR_BRANDS.map((slug) => allBrands.find((b) => b.slug === slug)).filter((b): b is NonNullable<typeof b> => Boolean(b));
+  const popularBrands = POPULAR_BRANDS.map((slug) => allBrands.find((b) => b.slug === slug)).filter(
+    (b): b is NonNullable<typeof b> => Boolean(b),
+  );
 
   const finderBrands = allBrands.map((b) => ({
     slug: b.slug,
@@ -64,32 +214,6 @@ export default function Home({ theme = "dark" }: { theme?: "dark" | "light" }) {
   return (
     <>
       <HomeHero modelCount={totalModels} finderBrands={finderBrands} />
-
-      {/* trust strip — copy managed in Admin → محتوای سایت */}
-      <div className="container-x relative z-20 mt-3 sm:mt-4">
-        <div className="grid grid-cols-2 overflow-hidden rounded-3xl border bd bg-ink-850 lg:grid-cols-4">
-          {content.trust.map((t, i) => {
-            const Icon = TRUST[i]?.icon ?? TRUST[0].icon;
-            return (
-              <div
-                key={i}
-                className={`flex items-center gap-3 p-3.5 sm:gap-3.5 sm:p-5 ${i > 0 ? "lg:border-s lg:bd" : ""} ${i > 1 ? "border-t bd lg:border-t-0" : ""} ${i % 2 === 1 ? "border-s bd lg:border-s" : ""}`}
-              >
-                <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-brand-500/10 text-brand-400 ring-1 ring-brand-500/20 sm:size-12">
-                  <Icon className="size-6" />
-                </span>
-                <span>
-                  <span className="block text-[13px] font-black sm:text-sm">{t.title}</span>
-                  <span className="mt-0.5 block text-xs tdim">{t.desc}</span>
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Collection Showcase */}
-      <CollectionShowcase accessories={accessories} modelCount={totalModels} />
 
       {/* products (tabbed) */}
       {tabs.length > 0 && (
@@ -105,31 +229,6 @@ export default function Home({ theme = "dark" }: { theme?: "dark" | "light" }) {
                 description: "پرفروش‌ترین‌ها، منتخب تیم 50500 و تخفیف‌های فعال در یک نگاه",
               }}
             />
-          </div>
-        </section>
-      )}
-
-      {/* Campaign banner — copy managed in Admin → محتوای سایت */}
-      {content.promo.enabled && (
-        <section className="container-x py-12 lg:py-20">
-          <div className="relative overflow-hidden rounded-[2rem] border border-brand-500/25 bg-linear-to-br from-brand-600/30 via-ink-850 to-ink-900 p-8 sm:p-12">
-            <div className="dot-bg pointer-events-none absolute inset-0 opacity-30" />
-            <div className="pointer-events-none absolute -end-16 -top-16 h-72 w-72 rounded-full bg-brand-500/30 blur-[100px]" />
-            <div className="relative grid items-center gap-8 md:grid-cols-[1fr_auto]">
-              <div>
-                <span className="inline-flex items-center gap-2 rounded-full bg-brand-500 px-3 py-1 text-xs font-black text-[#fff]">{content.promo.label}</span>
-                <h2 className="mt-4 text-3xl font-black leading-tight sm:text-4xl">
-                  {content.promo.title} <span className="text-gradient">{content.promo.highlight}</span>
-                </h2>
-                <p className="mt-3 max-w-lg text-sm leading-8 tdim">{content.promo.description}</p>
-              </div>
-              <div className="flex flex-col items-start gap-3 md:items-end">
-                <CopyCode code={content.promo.code} variant={theme} />
-                <Link href={content.promo.href} className="btn btn-primary w-full px-7 py-3.5 md:w-auto">
-                  {content.promo.button} <ArrowLeft className="size-5" />
-                </Link>
-              </div>
-            </div>
           </div>
         </section>
       )}
@@ -155,7 +254,6 @@ export default function Home({ theme = "dark" }: { theme?: "dark" | "light" }) {
                   className="group flex h-full flex-col overflow-hidden rounded-2xl border bd transition hover:-translate-y-1 hover:border-brand-500/45"
                   style={{ background: "var(--surface-1)" }}
                 >
-                  {/* wide photo, aspect like the reference cards */}
                   <span className="relative block aspect-[16/10] overflow-hidden" style={{ background: "var(--muted-surface)" }}>
                     <img
                       src={g.image}
@@ -174,9 +272,7 @@ export default function Home({ theme = "dark" }: { theme?: "dark" | "light" }) {
 
                   <span className="flex flex-1 flex-col p-4">
                     <span className="text-[15px] font-black leading-7">{g.name}</span>
-                    <span className="mt-1.5 line-clamp-3 text-[11px] leading-6 tdim">
-                      {brandNames.join("، ")}
-                    </span>
+                    <span className="mt-1.5 line-clamp-3 text-[11px] leading-6 tdim">{brandNames.join("، ")}</span>
                     <span className="mt-auto inline-flex items-center gap-1.5 pt-4 text-[13px] font-bold text-brand-300 transition-all group-hover:gap-3">
                       مشاهده کفپوش‌ها <ArrowLeft className="size-4" />
                     </span>
@@ -200,76 +296,11 @@ export default function Home({ theme = "dark" }: { theme?: "dark" | "light" }) {
       {/* Advanced 5-layer isometric construction */}
       <LayersSection />
 
-      {/* product spotlight: real product facts + real product photo */}
-      <Spotlight />
+      {/* Testimonials marquee */}
+      <TestimonialsSection />
 
-      {/* testimonials */}
-      <section className="container-x py-12 lg:py-20">
-        <SectionHeading eyebrow={content.headings.testimonials.eyebrow} title={content.headings.testimonials.title} desc={content.headings.testimonials.desc} />
-        <div className="grid gap-4 md:grid-cols-3 rail">
-          {REVIEWS.slice(0, 3).map((t, idx) => (
-            <figure key={idx} className="surface spot flex h-full flex-col rounded-3xl p-5">
-              <div className="flex items-center justify-between">
-                <Stars value={t.rating} className="size-4" />
-                <Quote className="size-7 text-brand-500/30" />
-              </div>
-              <blockquote className="mt-3 line-clamp-6 flex-1 text-sm leading-8 tdim">{t.comment}</blockquote>
-              <figcaption className="mt-4 flex items-center gap-3 border-t bd pt-4">
-                <span className="grid size-10 place-items-center rounded-full bg-linear-to-br from-brand-400 to-brand-700 text-sm font-black text-white">{t.name.slice(0, 1)}</span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-bold">{t.name}</span>
-                  <span className="block truncate text-xs tdim">{t.city}</span>
-                </span>
-              </figcaption>
-            </figure>
-          ))}
-        </div>
-      </section>
-
-      {/* blog */}
-      <section className="container-x py-12 lg:py-20">
-        <SectionHeading eyebrow={content.headings.blog.eyebrow} title={content.headings.blog.title} desc={content.headings.blog.desc} action={{ href: "/blog", label: "همه مقالات" }} />
-        <div className="grid gap-4 md:grid-cols-3 rail">
-          {BLOG_POSTS.slice(0, 3).map((p, i) => (
-            <Reveal key={p.slug} delay={i * 80} className="max-md:w-[78%] max-md:shrink-0 max-md:snap-start">
-              <Link href={`/blog/${p.slug}`} className="surface group block h-full overflow-hidden rounded-3xl transition hover:border-brand-500/30">
-                <div className="relative aspect-[16/10] overflow-hidden">
-                  <img src={p.image} alt={p.title} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
-                  <span className="glass absolute start-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-semibold">آموزشی</span>
-                </div>
-                <div className="p-5">
-                  <p className="text-xs tdim">
-                    {p.date} · {p.readTime}
-                  </p>
-                  <h3 className="mt-2 text-base font-black leading-7 transition-colors group-hover:text-brand-300">{p.title}</h3>
-                  <p className="mt-2 line-clamp-2 text-sm leading-7 tdim">{p.excerpt}</p>
-                </div>
-              </Link>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      {/* faq + contact */}
-      <section className="container-x pb-4">
-        <div className="grid gap-8 lg:grid-cols-[1.2fr_1fr]">
-          <div>
-            <SectionHeading eyebrow="پرسش‌های پرتکرار" title="سؤالات متداول" />
-            <div className="grid gap-3">
-              {FAQ.map((f, i) => (
-                <details key={f.q} className="surface group rounded-2xl p-5 open:border-brand-500/30" open={i === 0}>
-                  <summary className="flex cursor-pointer items-center justify-between gap-4 text-sm font-bold sm:text-base">
-                    {f.q}
-                    <ChevronDown className="size-5 shrink-0 tdim transition-transform group-open:rotate-180 group-open:text-brand-400" />
-                  </summary>
-                  <p className="mt-3 text-sm leading-8 tdim">{f.a}</p>
-                </details>
-              ))}
-            </div>
-          </div>
-          <WorkshopCard />
-        </div>
-      </section>
+      {/* Interactive FAQ + support card */}
+      <FaqSection />
     </>
   );
 }

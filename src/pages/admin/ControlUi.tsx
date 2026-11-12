@@ -14,14 +14,17 @@ export function PanelHeader({ title, description, actions }: { title: string; de
   );
 }
 
-export function Card({ title, description, children, className, action }: { title?: string; description?: string; children: ReactNode; className?: string; action?: ReactNode }) {
+export function Card({ title, description, children, className, action, icon }: { title?: string; description?: string; children: ReactNode; className?: string; action?: ReactNode; icon?: ReactNode }) {
   return (
     <section className={cn("min-w-0 rounded-3xl border bd p-4 sm:p-5", className)} style={{ background: "var(--surface-1)" }}>
       {(title || action) && (
         <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            {title && <h2 className="text-sm font-black">{title}</h2>}
-            {description && <p className="mt-1 text-[11px] leading-5 tdim">{description}</p>}
+          <div className="flex min-w-0 items-start gap-3">
+            {icon && <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-500/10 text-brand-400">{icon}</span>}
+            <div className="min-w-0">
+              {title && <h2 className="text-sm font-black">{title}</h2>}
+              {description && <p className="mt-1 text-[11px] leading-5 tdim">{description}</p>}
+            </div>
           </div>
           {action}
         </div>

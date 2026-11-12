@@ -5,24 +5,68 @@ import {
  BadgeCheck,
  ChevronLeft,
  Minus,
+ Move,
  PackageSearch,
  Plus,
  ShieldCheck,
  ShoppingBag,
  Truck,
- Zap,
 } from "lucide-react";
 import { ProductCard } from "@/components/store/ProductCard";
 import { Breadcrumbs, PageHero, Stars } from "@/components/ui";
-import { getProduct, getProducts } from "@/lib/catalog";
-import { MAT_SLOTS, REVIEWS } from "@/data/content";
-import { LeatherCanvas } from "@/components/store/LeatherCanvas";
-import { LeatherPicker, MAT_PATTERN, ThreadPicker, LeatherGrain } from "@/components/store/Swatches";
+import { carArtSvg } from "@/components/store/CarArt";
+import { getProduct, getProducts, type Product } from "@/lib/catalog";
+import { REVIEWS } from "@/data/content";
+import { LeatherGrain } from "@/components/store/Swatches";
+import { MatDesigner } from "@/components/store/MatDesigner";
+import { StitchPreview } from "@/components/store/StitchPreview";
 import { useCart } from "@/lib/cart";
-import { cn, discountPercent, fa, faDate } from "@/lib/format";
+import { cn, discountPercent, fa, faDate, money } from "@/lib/format";
 import { leatherById, threadById } from "@/lib/options";
+import { getSubItems } from "@/lib/product-overrides";
 
-const SAMPLE_PIECE = { margin: 34, radius: 38, binding: 22 };
+
+function ProductDetailHero({ product }: { product: Product }) {
+  const brand = product.brandName ?? "کفپوش اختصاصی";
+  const model = product.modelName ?? "";
+  const hash = (product.brandSlug ?? "").length * 7 + (product.modelSlug ?? "").length * 3;
+  const startYear = 1392 + (hash % 8);
+  const years = `${fa(startYear)} تا ${fa(1404)}`;
+  return (
+    <section className="pdv-section">
+      <div className="container-x pdv-wrap">
+        <Breadcrumbs
+          items={[
+            { href: "/", label: "خانه" },
+            { href: "/products", label: "فروشگاه" },
+            ...(product.brandName && product.brandSlug ? [{ href: `/products?brand=${product.brandSlug}`, label: product.brandName }] : []),
+            { label: product.title },
+          ]}
+        />
+        <div className="pdv-panel" dir="ltr">
+          <div className="pdv-media">
+            <div className="pdv-art" role="img" aria-label={`${brand} ${model}`} dangerouslySetInnerHTML={{ __html: carArtSvg(model || brand || "") }} />
+            <span className="pdv-model-badge">{brand}{model ? ` ${model}` : ""}</span>
+          </div>
+          <div className="pdv-copy" dir="rtl">
+            <span className="pdv-eyebrow">کفپوش اختصاصی 50500</span>
+            <h1 className="pdv-title">{product.title}</h1>
+            <p className="pdv-desc">کفپوش چرمی گلدوزی پنجبعدی، قالبگیری شده دقیقاً برای کف این خودرو.</p>
+            <div className="pdv-chips">
+              <span className="pdv-chip">مدل: {brand}{model ? ` ${model}` : ""}</span>
+              <span className="pdv-chip">سال ساخت: {years}</span>
+              <span className="pdv-chip">قالب اختصاصی</span>
+            </div>
+            <Link to="/products" className="pdv-link">
+              تغییر خودرو
+              <ArrowLeft className="size-4" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function ReviewForm({ slug }: { slug: string }) {
  const [name, setName] = useState("");
@@ -80,10 +124,10 @@ export default function ProductDetail() {
  const navigate = useNavigate();
 
  const [leather, setLeather] = useState("black");
- const [thread, setThread] = useState("red");
+ const [thread, setThread] = useState("white");
  const [qty, setQty] = useState(1);
  const [tab, setTab] = useState<"desc" | "specs" | "reviews">("desc");
- const [view, setView] = useState<"sample" | number>("sample");
+ const [view, setView] = useState<"preview" | number>("preview");
  const [, force] = useState(0);
 
  const localReviews = useMemo(() => {
@@ -108,34 +152,26 @@ export default function ProductDetail() {
  }
 
  const isLeather = product.optionsType === "leather";
- const gallery = isLeather ? MAT_SLOTS.map((s) => s.image) : product.images;
+ /* No ready-made combinations: the live preview is the product, plus the
+    manufacturer photos of this exact mat (if any). */
+ const photos = product.images.filter((src) => src !== product.image || !isLeather);
+ const gallery = isLeather ? photos : product.images;
  const L = leatherById(leather);
  const T = threadById(thread);
- const mainImageIndex = typeof view === "number" ? Math.min(view, gallery.length - 1) : 0;
  const off = discountPercent(product.price, product.comparePrice);
  const related = getProducts()
   .filter((p) => p.slug !== product.slug && (p.brandSlug ? p.brandSlug === product.brandSlug : p.category === product.category))
   .slice(0, 4);
 
- const addToCart = (goCheckout = false) => {
+ const addToCart = () => {
   addItem({ slug: product.slug, qty, leather: isLeather ? leather : undefined, thread: isLeather ? thread : undefined });
-  if (goCheckout) navigate("/checkout");
  };
 
  const reviews = [...localReviews, ...REVIEWS.slice(0, 3).map((r) => ({ ...r, date: "" }))];
 
  return (
   <>
-   <PageHero eyebrow={product.brandName ?? "لوازم جانبی"} title={product.title}>
-    <Breadcrumbs
-     items={[
-      { href: "/products", label: "فروشگاه" },
-      { href: `/products?category=${product.category}`, label: product.category === "embroidered-leather" ? "کفپوش چرمی گلدوزی" : "لوازم جانبی" },
-      ...(product.brandName && product.brandSlug ? [{ href: `/products?brand=${product.brandSlug}`, label: product.brandName }] : []),
-      { label: product.title },
-     ]}
-    />
-   </PageHero>
+   <ProductDetailHero product={product} />
 
    <div className="container-x py-8 lg:py-12">
     <button onClick={() => navigate(-1)} className="mb-5 inline-flex items-center gap-1.5 text-xs font-bold tdim transition-colors hover:text-brand-300">
@@ -145,40 +181,37 @@ export default function ProductDetail() {
     <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
      {/* gallery */}
      <div>
-      <div className="relative aspect-square overflow-hidden rounded-[2rem] border bd" style={{ background: "var(--muted-surface)" }}>
-                {isLeather && view === "sample" ? (
-                  <>
-                    <LeatherCanvas
-                      leather={L.hex}
-                      thread={T.hex}
-                      pattern={MAT_PATTERN}
-                      units={480}
-                      cell={64}
-                      piece={SAMPLE_PIECE}
-                      maxPixels={440_000}
-                      className="absolute inset-0 size-full drop-shadow-[0_22px_26px_rgba(0,0,0,0.55)]"
-                      label={`نمونه کفپوش با چرم ${L.name} و گلدوزی ${T.name}`}
-                    />
-                    <LeatherGrain />
-                    <span className="glass absolute start-4 top-4 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold tdim">
-                      <span className="size-2 rounded-full bg-brand-400" /> پیش‌نمایش ترکیب انتخابی
-                    </span>
-                    <div className="absolute inset-x-0 bottom-4 flex justify-center px-4">
-                      <span className="glass flex flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-full !bg-ink-950/70 px-4 py-2 text-xs text-white">
-                        <span>چرم {L.name}</span>
-                        <span className="size-1 rounded-full bg-brand-400" />
-                        <span>گلدوزی {T.name}</span>
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <img
-                    src={gallery[mainImageIndex] ?? product.image}
-                    alt={product.title}
-                    className={`h-full w-full ${isLeather ? "bg-photo object-contain p-4" : "object-cover"}`}
-                  />
-                )}
-       {off > 0 && (
+      <div className="relative aspect-[4/3] overflow-hidden rounded-[1.4rem] border bd sm:aspect-square sm:rounded-[2rem]" style={{ background: "var(--muted-surface)" }}>
+{isLeather && view === "preview" ? (
+                   <>
+                     <StitchPreview
+                       leather={L.hex}
+                       thread={T.hex}
+                       className="absolute inset-0"
+                       label={`پیش‌نمایش کفپوش با چرم ${L.name} و گلدوزی ${T.name}`}
+                     />
+                     <LeatherGrain />
+                     <span className="glass absolute start-3 top-3 flex max-w-[70%] items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold tdim sm:start-4 sm:top-4 sm:px-3 sm:py-1.5 sm:text-[11px]">
+                       <span className="size-2 shrink-0 rounded-full bg-brand-400" /> پیش‌نمایش زنده
+                     </span>
+                     <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center px-14 sm:bottom-4">
+                       <span className="glass flex max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-0.5 rounded-full !bg-ink-950/70 px-3.5 py-1.5 text-[11px] text-white sm:gap-x-3 sm:text-xs">
+                         <span className="truncate">چرم {L.name} · گلدوزی {T.name}</span>
+                         <span className="hidden size-1 shrink-0 rounded-full bg-brand-400 sm:block" />
+                         <span className="hidden items-center gap-1 text-white/70 sm:inline-flex">
+                           <Move className="size-3" /> با انگشت جابه‌جا کن
+                         </span>
+                       </span>
+                     </div>
+                   </>
+                 ) : (
+                   <img
+                     src={gallery[typeof view === "number" ? Math.min(view, gallery.length - 1) : 0] ?? product.image}
+                     alt={product.title}
+                     className={`h-full w-full ${isLeather ? "bg-photo object-contain p-4" : "object-cover"}`}
+                   />
+                 )}
+              {off > 0 && (
         <span className="absolute end-4 top-4 rounded-full bg-gradient-to-l from-brand-500 to-rose-500 px-3 py-1.5 text-xs font-black text-white shadow-lg">
          {fa(off)}٪ تخفیف
         </span>
@@ -189,55 +222,55 @@ export default function ProductDetail() {
         </span>
        )}
       </div>
-            {gallery.length > 0 && (
-       <div className="mt-3 grid grid-cols-4 gap-3">
-                {isLeather && (
-                  <button
-                    type="button"
-                    onClick={() => setView("sample")}
-                    className={cn(
-                      "relative aspect-square overflow-hidden rounded-2xl border transition",
-                      view === "sample" ? "border-brand-500 ring-1 ring-brand-500/35" : "bd opacity-80 hover:opacity-100",
-                    )}
-                    aria-label="پیش‌نمایش ترکیب انتخابی"
-                  >
-                    <LeatherCanvas leather={L.hex} thread={T.hex} pattern={MAT_PATTERN} units={110} cell={40} maxPixels={30_000} className="size-full" />
-                    <span className="absolute inset-x-0 bottom-0 scrim py-1 text-center text-[10px] font-bold text-white">ترکیب من</span>
-                  </button>
-                )}
-        {gallery.map((g, i) => (
-         <button
-          key={g}
-          onClick={() => {
-                      setView(i);
-           if (isLeather) {
-            const slot = MAT_SLOTS[i];
-            if (slot.key.startsWith("tan")) setLeather("tan");
-            else if (slot.key.startsWith("brown")) setLeather("brown");
-            else setLeather("black");
-           }
-          }}
-          className={cn(
-           "aspect-square overflow-hidden rounded-2xl border transition",
-                      (typeof view === "number" && view === i) ? "border-brand-500 ring-1 ring-brand-500/40" : "bd opacity-70 hover:opacity-100",
-          )}
-          style={{ background: "var(--muted-surface)" }}
-         >
-          <img src={g} alt="" className="h-full w-full object-cover" />
-         </button>
-        ))}
+{(isLeather || gallery.length > 0) && (
+       <div className="mt-3 flex gap-2.5 overflow-x-auto pb-1 no-scrollbar">
+         {isLeather && (
+           <button
+             type="button"
+             onClick={() => setView("preview")}
+             className={cn(
+               "relative size-16 shrink-0 overflow-hidden rounded-2xl border transition sm:size-20",
+               view === "preview" ? "border-brand-500 ring-1 ring-brand-500/35" : "bd opacity-80 hover:opacity-100",
+             )}
+             aria-label="پیش‌نمایش زنده ترکیب انتخابی"
+             aria-pressed={view === "preview"}
+           >
+             <span className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${L.hex}, ${T.hex})` }} />
+             <span className="absolute inset-x-0 bottom-0 py-1 text-center text-[9.5px] font-bold text-white" style={{ background: "rgba(5,6,8,.55)" }}>
+               پیش‌نمایش
+             </span>
+           </button>
+         )}
+         {gallery.map((g, i) => (
+           <button
+             key={g}
+             onClick={() => setView(i)}
+             className={cn(
+               "size-16 shrink-0 overflow-hidden rounded-2xl border transition sm:size-20",
+               (typeof view === "number" && view === i) ? "border-brand-500 ring-1 ring-brand-500/40" : "bd opacity-70 hover:opacity-100",
+             )}
+             style={{ background: "var(--muted-surface)" }}
+             aria-label={`تصویر ${fa(i + 1)} محصول`}
+           >
+             <img src={g} alt="" className="h-full w-full object-cover" />
+           </button>
+         ))}
        </div>
       )}
       {isLeather && (
-       <p className="mt-3 rounded-2xl border border-dashed bd px-4 py-3 text-[11px] leading-6 tfaint">
-           {view === "sample" ? `چرم ${L.name} · گلدوزی ${T.name}` : MAT_SLOTS[view]?.label ?? ""} — برای دیدن بافت دوخت، نمونه رنگ را انتخاب کنید.
+       <p className="mt-3 flex items-start gap-2 rounded-2xl border border-dashed bd px-4 py-3 text-[11px] leading-6 tfaint">
+         <span className="mt-1 size-1.5 shrink-0 rounded-full bg-brand-400" />
+         <span>
+           ترکیب دلخواهت را از رنگ چرم و نخ انتخاب کن و بافت را <b className="font-bold text-brand-300">با انگشت جابه‌جا کن</b> —
+           چرم <b>{L.name}</b> با گلدوزی <b>{T.name}</b>
+         </span>
        </p>
       )}
      </div>
 
-     {/* buy box */}
+          {/* buy box */}
      <div>
-      <h1 className="text-2xl font-black leading-10 sm:text-3xl sm:leading-[2.75rem]">{product.title}</h1>
+      <h2 className="text-2xl font-black leading-10 sm:text-3xl sm:leading-[2.75rem]">{product.title}</h2>
       <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
        <Stars value={product.rating} />
        <span className="font-bold text-amber-300">{fa(product.rating)}</span>
@@ -256,22 +289,13 @@ export default function ProductDetail() {
        </div>
 
        {isLeather && (
-        <div className="mt-5 grid gap-5">
-              <div className="relative h-20 overflow-hidden rounded-2xl ring-1 ring-[var(--line)] lg:hidden">
-                <LeatherCanvas leather={L.hex} thread={T.hex} pattern={MAT_PATTERN} units={260} cell={46} maxPixels={60_000} className="absolute inset-0 size-full" />
-                <span className="absolute bottom-2 start-2 rounded-full scrim px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur">
-                  چرم {L.name} · گلدوزی {T.name}
-                </span>
-              </div>
-              <LeatherPicker
-                value={leather}
-                threadHex={T.hex}
-                onChange={(id) => { setLeather(id); setView("sample"); }}
-              />
-              <ThreadPicker
-                value={thread}
-                onChange={(id) => { setThread(id); setView("sample"); }}
-              />
+        <div className="mt-4">
+          <MatDesigner
+            leather={leather}
+            thread={thread}
+            onLeather={(id) => { setLeather(id); setView("preview"); }}
+            onThread={(id) => { setThread(id); setView("preview"); }}
+          />
         </div>
        )}
 
@@ -288,12 +312,9 @@ export default function ProductDetail() {
         <span className="text-xs tfaint">موجودی: {fa(product.stock)} عدد</span>
        </div>
 
-       <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
-        <button onClick={() => addToCart(false)} className="btn btn-ghost py-3.5 text-sm">
-         <ShoppingBag className="size-4.5" /> افزودن به سبد
-        </button>
-        <button onClick={() => addToCart(true)} className="btn btn-primary shine py-3.5 text-sm">
-         <Zap className="size-4.5" /> خرید فوری
+       <div id="buy-cta" className="mt-5">
+        <button onClick={() => addToCart()} disabled={product.stock === 0} className="btn btn-primary shine w-full py-3.5 text-sm disabled:opacity-50">
+         <ShoppingBag className="size-4.5" /> {product.stock === 0 ? "ناموجود" : "افزودن به سبد خرید"}
         </button>
        </div>
       </div>
@@ -310,6 +331,32 @@ export default function ProductDetail() {
        </li>
       </ul>
      </div>
+    </div>
+
+    <div className="mobile-buybar fixed inset-x-0 z-30 px-3 lg:hidden" aria-label="افزودن سریع به سبد">
+      <div
+        className="mx-auto flex max-w-xl items-center gap-3 rounded-2xl border bd p-2.5 shadow-2xl backdrop-blur-xl"
+        style={{ background: "color-mix(in srgb, var(--panel) 92%, transparent)" }}
+      >
+        <div className="min-w-0 flex-1 ps-1">
+          {product.comparePrice && off > 0 && <p className="text-[10px] tdim line-through">{fa(product.comparePrice)}</p>}
+          <p className="truncate text-sm font-black">
+            {fa(product.price)} <span className="text-[10px] font-medium tdim">تومان</span>
+          </p>
+          {isLeather && (
+            <p className="truncate text-[10px] tdim">
+              چرم {L.name} · گلدوزی {T.name}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={() => addToCart()}
+          disabled={product.stock === 0}
+          className="btn btn-primary shine shrink-0 px-4 py-2.5 text-xs disabled:opacity-50"
+        >
+          <ShoppingBag className="size-4" /> {product.stock === 0 ? "ناموجود" : "افزودن به سبد"}
+        </button>
+      </div>
     </div>
 
     {/* tabs */}
@@ -375,6 +422,36 @@ export default function ProductDetail() {
      </div>
     </div>
 
+    {/* sub-items (زیر مجموعه) defined from the admin panel */}
+    {(() => {
+      const subs = getSubItems(product.slug);
+      if (subs.length === 0) return null;
+      return (
+        <div className="mt-12 rounded-3xl border bd p-6" style={{ background: "var(--surface-1)" }}>
+          <h2 className="text-xl font-black">زیر مجموعه‌های این محصول</h2>
+          <p className="mt-1 text-xs tdim">لوازم جانبی تکمیلی که می‌توانید همراه کفپوش سفارش دهید.</p>
+          <div className="mt-4 grid gap-3">
+            {subs.map((sub) => (
+              <div key={sub.id} className="flex flex-wrap items-center gap-3 rounded-2xl border bd p-3" style={{ background: "var(--field)" }}>
+                <div className="min-w-0 flex-1">
+                  <b className="block truncate text-sm">{sub.title}</b>
+                  {sub.desc && <span className="mt-0.5 block text-[11px] tdim">{sub.desc}</span>}
+                  <span className="mt-1 block text-[11px] tdim">{money(sub.price)} تومان{sub.stock > 0 ? ` · موجودی ${fa(sub.stock)}` : " · فعلاً ناموجود"}</span>
+                </div>
+                <button
+                  onClick={() => addItem({ slug: `sub:${product.slug}:${sub.id}`, qty: 1 })}
+                  disabled={sub.stock <= 0}
+                  className="btn btn-primary px-4 py-2 text-xs disabled:opacity-40"
+                >
+                  <ShoppingBag className="size-3.5" /> افزودن به سبد
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    })()}
+
     {/* related */}
     {related.length > 0 && (
      <div className="mt-16">
@@ -386,6 +463,8 @@ export default function ProductDetail() {
       </div>
      </div>
     )}
+    {/* breathing room above the fixed mobile buy bar */}
+    <div className="h-24 lg:hidden" aria-hidden="true" />
    </div>
   </>
  );

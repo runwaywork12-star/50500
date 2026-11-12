@@ -42,7 +42,7 @@ export function ProductCard({ product }: { product: Product }) {
         />
         {!leather && <div className="absolute inset-0 scrim-grad-soft" />}
         <span className="absolute start-2 top-2 rounded-full scrim px-2 py-1 text-[10px] font-semibold text-white/90 backdrop-blur sm:start-3 sm:top-3 sm:px-2.5 sm:text-[11px]">
-          {product.brandName ?? "لوازم جانبی"}
+          {product.brandName ?? "کفپوش اختصاصی"}
         </span>
         <div className="absolute end-2 top-2 flex flex-col items-end gap-1 sm:end-3 sm:top-3 sm:gap-1.5">
           {off > 0 && (

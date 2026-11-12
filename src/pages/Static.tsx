@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
  ArrowLeft,
  Award,
@@ -15,12 +15,16 @@ import {
  Users,
 } from "lucide-react";
 import { PageHero } from "@/components/ui";
-import { BLOG_POSTS, SITE, TRUST } from "@/data/content";
+import { useSiteContent } from "@/lib/site-content";
+import { SITE, TRUST } from "@/data/content";
 import { modelCount } from "@/lib/catalog";
 import { fa } from "@/lib/format";
 import { img } from "@/lib/images";
 
 export function About() {
+ const { content } = useSiteContent();
+ const about = content.pageContent.about ?? {};
+ const aboutCover = content.imageSlots["about.cover"]?.src ?? img("images/showcase/card-front-mat.jpg");
  const stats = [
   { icon: Ruler, value: `+${fa(modelCount())}`, label: "مدل خودرو با قالب اختصاصی" },
   { icon: Users, value: "+۱۲۰۰۰", label: "مشتری راضی در سراسر ایران" },
@@ -32,7 +36,7 @@ export function About() {
    <PageHero
     eyebrow="درباره 50500"
     title={<>تولیدکننده تخصصی <span className="text-gradient">کفپوش چرمی گلدوزی</span> خودرو</>}
-    desc="از سال ۱۳۹۵ در کارگاه 50500، کفپوش هر خودرو را با اسکن سه‌بعدی قالب، به‌صورت اختصاصی می‌دوزیم و گلدوزی می‌کنیم."
+    desc={about.intro || "از سال ۱۳۵ در کارگاه 50500، کفپوش هر خودرو را با اسکن سه‌بعدی قالب، به‌صورت اختصاصی می‌دوزیم و گلدوزی می‌کنیم."}
    />
    <div className="container-x py-12 lg:py-16">
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -49,17 +53,13 @@ export function About() {
 
     <div className="mt-12 grid items-center gap-10 lg:grid-cols-2">
      <div>
-      <img src={img("images/showcase/card-front-mat.jpg")} alt="کارگاه 50500" className="w-full rounded-[2rem] border bd object-cover" />
+      <img src={aboutCover} alt="کارگاه 50500" className="w-full rounded-[2rem] border bd object-cover" />
      </div>
      <div>
       <h2 className="text-2xl font-black leading-10 sm:text-3xl">داستان ما از یک کارگاه کوچک شروع شد</h2>
       <div className="mt-5 grid gap-4 text-sm leading-8 tdim">
-       <p>
-        بنیان‌گذاران 50500 با این با این باور کهد اختصاصی باشد. امروز با دستگاه اسکن سه‌بعدی، قالب بیش از {fa(modelCount())} مدل خودرو را در آرشیو داریم.
-       </p>
-       <p>
-        همه محصولات در کارگاه خودمان دوخته می‌شوند: رویه چرمی، فوم ۹ میلی‌متری، پارچه جودون و گلدوزی دستی با نخ‌های رنگی — با هولوگرام اصالت و ۱۲ ماه گارانتی.
-       </p>
+       <p>{about.story1 || "بنیان‌گذاران 50500 با این باور که کفپوش باید کاملاً اختصاصی باشد کار را شروع کردند. امروز با دستگاه اسکن سه‌بعدی، قالب بیش از " + fa(modelCount()) + " مدل خودرو را در آرشیو داریم."}</p>
+       <p>{about.story2 || "همه محصولات در کارگاه خودمان دوخته می‌شوند: رویه چرمی، فوم ۹ میلی‌متری، پارچه جودون و گلدوزی دستی با نخ‌های رنگی — با هولوگرام اصالت و ۱۲ ماه گارانتی."}</p>
       </div>
       <ul className="mt-6 grid gap-3 sm:grid-cols-2">
        {TRUST.map((t) => (
@@ -83,6 +83,9 @@ export function About() {
 }
 
 export function Contact() {
+ const { content } = useSiteContent();
+ const contactPage = content.pageContent.contact ?? {};
+ const contactCover = content.imageSlots["contact.cover"]?.src ?? img("images/hero-mat.webp");
  const [form, setForm] = useState({ name: "", phone: "", subject: "", body: "" });
  const [sent, setSent] = useState(false);
  const submit = (e: FormEvent) => {
@@ -98,7 +101,7 @@ export function Contact() {
  ];
  return (
   <>
-   <PageHero eyebrow="تماس با ما" title="در کنار شما هستیم" desc="سؤالی درباره انتخاب کفپوش، رنگ‌ها یا پیگیری سفارش دارید؟ پیام بدهید؛ همان روز پاسخ می‌دهیم." />
+   <PageHero eyebrow="تماس با ما" title={contactPage.title || "در کنار شما هستیم"} desc={contactPage.desc || "سؤالی درباره انتخاب کفپوش، رنگ‌ها یا پیگیری سفارش دارید؟ پیام بدهید؛ همان روز پاسخ می‌دهیم."} />
    <div className="container-x py-12 lg:py-16">
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
      {cards.map((c) => (
@@ -141,7 +144,7 @@ export function Contact() {
       )}
      </div>
      <div className="relative min-h-[320px] overflow-hidden rounded-[2rem] border bd" style={{ background: "var(--muted-surface)" }}>
-      <img src={img("images/hero-mat.webp")} alt="فروشگاه 50500" className="absolute inset-0 h-full w-full object-cover opacity-70" />
+      <img src={contactCover} alt="فروشگاه 50500" className="absolute inset-0 h-full w-full object-cover opacity-70" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
       <div className="absolute bottom-0 end-0 start-0 p-8">
        <p className="flex items-center gap-2 text-sm font-black text-white"><Factory className="size-5 text-brand-400" /> showroom و دفتر فروش</p>
@@ -157,57 +160,11 @@ export function Contact() {
 export function Blog() {
  return (
   <>
-   <PageHero eyebrow="مجله 50500" title="مقالات آموزشی" desc="راهنمای انتخاب، مقایسه و نگهداری از کفپوش و روکش‌های چرمی خودرو" />
-   <div className="container-x grid gap-5 py-12 md:grid-cols-2 lg:grid-cols-3 lg:py-16">
-    {BLOG_POSTS.map((p) => (
-     <Link key={p.slug} to={`/blog/${p.slug}`} className="group flex h-full flex-col overflow-hidden rounded-3xl border bd transition hover:-translate-y-1 hover:border-brand-500/40" style={{ background: "var(--surface-1)" }}>
-      <span className="relative block h-48 overflow-hidden" style={{ background: "var(--muted-surface)" }}>
-       <img src={p.image} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-      </span>
-      <span className="flex flex-1 flex-col p-6">
-       <span className="text-[11px] font-bold tfaint">{p.date} · مطالعه {p.readTime}</span>
-       <b className="mt-2 text-base font-black leading-7">{p.title}</b>
-       <span className="mt-2 line-clamp-3 text-xs leading-6 tdim">{p.excerpt}</span>
-       <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-brand-300 transition-all group-hover:gap-3">
-        ادامه مطلب <ArrowLeft className="size-3.5" />
-       </span>
-      </span>
-     </Link>
-    ))}
-   </div>
+   <div className="container-x py-6 text-center text-xs tdim">درحال انتقال به مجله 50500…</div>
+   <Link to="/" style={{ display: "none" }} aria-hidden="true" />
   </>
  );
 }
-
-export function BlogPost() {
- const { slug } = useParams();
- const post = BLOG_POSTS.find((p) => p.slug === slug);
- if (!post) {
-  return (
-   <>
-    <PageHero eyebrow="مجله" title="مقاله یافت نشد" />
-    <div className="container-x py-16 text-center">
-     <Link to="/blog" className="btn btn-primary px-6 py-3 text-sm">بازگشت به مجله <ArrowLeft className="size-4" /></Link>
-    </div>
-   </>
-  );
- }
- return (
-  <>
-   <PageHero eyebrow="مجله 50500" title={post.title} desc={`${post.date} · مطالعه ${post.readTime}`} />
-   <article className="container-x max-w-3xl py-12">
-    <img src={post.image} alt="" className="w-full rounded-[2rem] border bd object-cover" style={{ maxHeight: 380 }} />
-    <div className="mt-8 grid gap-5 text-sm leading-9 tdim sm:text-[15px]">
-     {post.body.map((p, i) => (
-      <p key={i}>{p}</p>
-     ))}
-    </div>
-    <Link to="/blog" className="btn btn-ghost mt-10 px-6 py-3 text-sm"><ArrowLeft className="size-4" /> همه مقالات</Link>
-   </article>
-  </>
- );
-}
-
 export function NotFound() {
  return (
   <>

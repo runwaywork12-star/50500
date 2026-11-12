@@ -3,8 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, Minus, Plus, ShoppingBag, Tag, Trash2, Truck, X } from "lucide-react";
 import { PageHero } from "@/components/ui";
 import { useCart } from "@/lib/cart";
-import { FREE_SHIPPING_THRESHOLD } from "@/data/content";
-import { LEATHER_COLORS, THREAD_COLORS } from "@/data/content";
+import { FREE_SHIPPING_THRESHOLD, LEATHER_COLORS, THREAD_COLORS, matImageFor } from "@/data/content";
 import { cn, fa, money } from "@/lib/format";
 
 export default function Cart() {
@@ -47,8 +46,8 @@ export default function Cart() {
         const threadName = x.thread ? THREAD_COLORS.find((c) => c.id === x.thread)?.name : null;
         return (
          <div key={`${x.slug}-${x.leather ?? ""}-${x.thread ?? ""}`} className="flex gap-4 rounded-3xl border bd p-4" style={{ background: "var(--surface-1)" }}>
-          <Link to={`/products/${x.slug}`} className="block size-24 shrink-0 overflow-hidden rounded-2xl sm:size-28" style={{ background: "var(--muted-surface)" }}>
-           <img src={x.product.image} alt={x.product.title} className="h-full w-full object-cover" />
+          <Link to={`/products/${x.slug}`} className="block size-24 shrink-0 overflow-hidden rounded-2xl" style={{ background: "var(--muted-surface)" }}>
+           <img src={x.leather ? matImageFor(x.leather) : x.product.image} alt={x.product.title} className="h-full w-full object-contain p-1" />
           </Link>
           <div className="min-w-0 flex-1">
            <div className="flex items-start justify-between gap-3">
@@ -70,11 +69,11 @@ export default function Cart() {
            )}
            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center rounded-xl border bd" style={{ background: "var(--field)" }}>
-             <button onClick={() => setQty(x.slug, x.qty - 1, x.leather, x.thread)} className="grid size-9 place-items-center transition soft-h" aria-label="کاهش">
+             <button onClick={() => setQty(x.slug, x.qty - 1, x.leather, x.thread)} className="grid size-10 place-items-center transition soft-h sm:size-11" aria-label="کاهش">
               <Minus className="size-3.5" />
              </button>
              <span className="w-8 text-center text-sm font-black">{fa(x.qty)}</span>
-             <button onClick={() => setQty(x.slug, x.qty + 1, x.leather, x.thread)} className="grid size-9 place-items-center transition soft-h" aria-label="افزایش">
+             <button onClick={() => setQty(x.slug, x.qty + 1, x.leather, x.thread)} className="grid size-10 place-items-center transition soft-h sm:size-11" aria-label="افزایش">
               <Plus className="size-3.5" />
              </button>
             </div>
@@ -118,7 +117,7 @@ export default function Cart() {
       </div>
 
       {/* summary */}
-      <aside className="lg:sticky lg:top-32 lg:self-start">
+      <aside className="hidden lg:sticky lg:top-32 lg:block lg:self-start">
        <div className="rounded-3xl border bd p-6" style={{ background: "var(--surface-1)" }}>
         <h2 className="text-base font-black">خلاصه سفارش</h2>
 
@@ -149,13 +148,24 @@ export default function Cart() {
         </dl>
 
         <Link to="/checkout" className="btn btn-primary shine mt-5 w-full py-4 text-sm">
-         ادامه processus de paiement <ArrowLeft className="size-5" />
+         ادامه و تکمیل خرید <ArrowLeft className="size-5" />
         </Link>
-        <Link to="/products" className="btn btn-ghost mt-2 w-full py-3 text-sm">
-         ادامه خرید
-        </Link>
+
        </div>
       </aside>
+     </div>
+    )}
+
+    {/* Mobile: one clear action, total always visible */}
+    {detailed.length > 0 && (
+     <div className="mc-cart-bar lg:hidden">
+      <div className="mc-cart-total">
+       <small>مبلغ قابل پرداخت</small>
+       <b>{money(total)} <span>تومان</span></b>
+      </div>
+      <Link to="/checkout" className="mc-cart-cta">
+       ادامه و تسویه <ArrowLeft className="size-4" />
+      </Link>
      </div>
     )}
    </div>

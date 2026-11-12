@@ -26,10 +26,14 @@ import {
   X,
 } from "lucide-react";
 import { HERO_LINK_OPTIONS, MEDIA_LIBRARY, useSiteContent } from "@/lib/site-content";
+import { downloadJSON, getControlState, saveControlState, type ControlState } from "@/lib/control-center";
+import { listMedia, saveMedia, type MediaAsset } from "@/lib/media-library";
+import { clearProductOverrides, getProductOverrides, setProductOverride, type ProductOverride } from "@/lib/product-overrides";
+import { ArticlesCmsEditor, PagesCmsEditor } from "./CmsPages";
+import { LEATHER_COLORS, THREAD_COLORS } from "@/lib/options";
 import {
   STAFF_MODULES,
   dateFa,
-  downloadAdminBackup as exportBackup,
   financeTotals,
   money,
   type AdminState,
@@ -55,7 +59,81 @@ export type PanelBase = {
   onLog: (action: string, module: string) => void;
 };
 
+
+/* ----------------------- گزینه‌های چرم و نخ گلدوزی ----------------------- */
+
+function MatOptionsManager({ onToast }: { onToast: (m: string) => void }) {
+  const { content, update } = useSiteContent();
+  const opts = content.matOptions;
+
+  const activeLeathers = LEATHER_COLORS.filter((c) => !opts.disabledLeather.includes(c.id)).length;
+  const activeThreads = THREAD_COLORS.filter((c) => !opts.disabledThread.includes(c.id)).length;
+
+  const toggle = (kind: "disabledLeather" | "disabledThread", id: string, name: string, disable: boolean) => {
+    const current = opts[kind];
+    const activeCount =
+      kind === "disabledLeather"
+        ? LEATHER_COLORS.filter((c) => !current.includes(c.id)).length
+        : THREAD_COLORS.filter((c) => !current.includes(c.id)).length;
+    if (disable && activeCount <= 1) {
+      onToast("حداقل یک رنگ باید فعال بماند");
+      return;
+    }
+    const next = disable ? [...current, id] : current.filter((x) => x !== id);
+    update({ matOptions: { ...opts, [kind]: next } });
+    onToast(`رنگ «${name}» ${disable ? "در فروشگاه مخفی شد" : "در فروشگاه فعال شد"}`);
+  };
+
+  const ColorRow = ({ c, kind }: { c: { id: string; name: string; hex: string }; kind: "disabledLeather" | "disabledThread" }) => {
+    const off = opts[kind].includes(c.id);
+    return (
+      <div className="flex items-center gap-3 rounded-xl border bd px-3 py-2" style={{ background: "var(--field)", opacity: off ? 0.55 : 1 }}>
+        <span
+          className="size-7 shrink-0 rounded-full shadow-inner"
+          style={{ background: `radial-gradient(circle at 30% 28%, rgba(255,255,255,.5), rgba(255,255,255,0) 45%), ${c.hex}`, outline: "1px solid var(--line)" }}
+        />
+        <span className="min-w-0 flex-1 truncate text-xs font-bold">{c.name}</span>
+        <Switch checked={!off} onChange={(on) => toggle(kind, c.id, c.name, !on)} label={off ? "مخفی" : "فعال"} />
+      </div>
+    );
+  };
+
+  return (
+    <Card
+      title="رنگ چرم و نخ گلدوزی موجود"
+      desc="رنگ‌هایی را که فعلاً نمی‌توانید تولید کنید مخفی کنید؛ بلافاصله از صفحه محصول حذف می‌شوند"
+      icon={<Wrench className="size-4.5" />}
+    >
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] font-bold">
+        <span className="rounded-full bg-brand-500/15 px-2.5 py-1 text-brand-300">{activeLeathers} رنگ چرم فعال</span>
+        <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-emerald-300">{activeThreads} رنگ نخ فعال</span>
+        <span className="ms-auto tfaint">تغییر بلافاصله لایو می‌شود</span>
+      </div>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <div>
+          <p className="mb-2 text-[11px] font-black tfaint">رنگ‌های چرم ({LEATHER_COLORS.length})</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2">
+            {LEATHER_COLORS.map((c) => <ColorRow key={c.id} c={c} kind="disabledLeather" />)}
+          </div>
+        </div>
+        <div>
+          <p className="mb-2 text-[11px] font-black tfaint">رنگ‌های نخ گلدوزی ({THREAD_COLORS.length})</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2">
+            {THREAD_COLORS.map((c) => <ColorRow key={c.id} c={c} kind="disabledThread" />)}
+          </div>
+        </div>
+      </div>
+      {((activeLeathers <= 1) || (activeThreads <= 1)) && (
+        <p className="mt-3 flex items-center gap-1.5 rounded-xl bg-amber-400/10 px-3 py-2 text-[10px] leading-5 text-amber-300">
+          هشدار: انتخاب صفحه محصول محدود شده است؛ حداقل یک رنگ از هر نوع حتماً باید فعال بماند.
+        </p>
+      )}
+    </Card>
+  );
+}
+
 /* ------------------------------ shared atoms ------------------------------ */
+
 
 function ModuleHeading({ title, desc, action }: { title: string; desc: string; action?: ReactNode }) {
   return (
@@ -69,7 +147,7 @@ function ModuleHeading({ title, desc, action }: { title: string; desc: string; a
   );
 }
 
-function Card({ title, desc, children, className = "", icon }: { title: string; desc?: string; children: ReactNode; className?: string; icon?: ReactNode }) {
+export function Card({ title, desc, children, className = "", icon }: { title: string; desc?: string; children: ReactNode; className?: string; icon?: ReactNode }) {
   return (
     <section className={cn("rounded-3xl border bd p-5", className)} style={{ background: "var(--surface-1)" }}>
       <div className="mb-4 flex items-start gap-3">
@@ -84,7 +162,7 @@ function Card({ title, desc, children, className = "", icon }: { title: string; 
   );
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="grid gap-1.5">
       <span className="text-[11px] font-bold tdim">{label}</span>
@@ -182,6 +260,11 @@ export function ContentPanel({ onToast, onLog }: Pick<PanelBase, "onToast" | "on
           هر فیلد ذخیره‌ی خودکار دارد و بلافاصله در صفحه اصلی، هدر و فوتر اعمال می‌شود. با «ذخیره و انتشار»، رویداد آن در لاگ فعالیت ثبت می‌شود.
         </span>
       </div>
+
+      {/* ===== کنترل متن و تصویر کامل همه صفحات ===== */}
+      <PagesCmsEditor onToast={onToast} onLog={onLog} />
+      <MatOptionsManager onToast={onToast} />
+      <ArticlesCmsEditor onToast={onToast} />
 
       {/* announcement + promo bar */}
       <div className="grid gap-5 lg:grid-cols-2">
@@ -378,6 +461,8 @@ export function ContentPanel({ onToast, onLog }: Pick<PanelBase, "onToast" | "on
           </div>
         </div>
       </Card>
+
+
     </div>
   );
 }
@@ -878,7 +963,7 @@ export function StaffPanel({ state, patch, onToast, onLog }: PanelBase) {
           <Card title="افزودن کارمند" desc="دسترسی پیش‌فرض: مشاهده سفارش‌ها" icon={<UserPlus className="size-4.5" />}>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="نام و نام خانوادگی"><input className="input" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="مثلاً: الهام رستمی" /></Field>
-              <Field label="ایمیل کاری"><input className="input" dir="ltr" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="name@50500.co" /></Field>
+              <Field label="ایمیل کاری"><input className="input" dir="ltr" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="name@50500.shop" /></Field>
               <Field label="نقش">
                 <select className="input" value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}>
                   {["مدیر فروش", "کارشناس انبار", "پشتیبانی مشتریان", "کارشناس محتوا", "حسابدار"].map((r) => <option key={r}>{r}</option>)}
@@ -961,16 +1046,31 @@ export function SystemPanel({ state, patch, onToast, onLog }: PanelBase) {
   const site = useSiteContent();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const backup = () => {
-    exportBackup(state, { content: site.content, version: 1 });
-    onToast("فایل پشتیبان (تنظیمات و محتوا) دانلود شد");
-    onLog("دریافت پشتیبان کامل پنل و محتوای سایت", "تنظیمات");
+  const backup = async () => {
+    const media = await listMedia().catch(() => []);
+    downloadJSON(`50500-backup-${new Date().toISOString().slice(0, 10)}.json`, {
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      state,
+      content: site.content,
+      control: getControlState(),
+      productOverrides: getProductOverrides(),
+      media,
+    });
+    onToast("فایل پشتیبان کامل دانلود شد");
+    onLog("دریافت پشتیبان کامل پنل، رسانه و محتوای سایت", "تنظیمات");
   };
 
   const restore = async (file: File) => {
     try {
-      const parsed = JSON.parse(await file.text()) as { state?: Partial<AdminState>; content?: Parameters<typeof site.replace>[0] };
-      if (!parsed.state && !parsed.content) throw new Error("bad file");
+      const parsed = JSON.parse(await file.text()) as {
+        state?: Partial<AdminState>;
+        content?: Parameters<typeof site.replace>[0] & { content?: Parameters<typeof site.replace>[0] };
+        control?: ControlState;
+        productOverrides?: Record<string, ProductOverride>;
+        media?: MediaAsset[];
+      };
+      if (!parsed.state && !parsed.content && !parsed.control) throw new Error("bad file");
       if (parsed.state) {
         const base = state;
         patch("orders", parsed.state.orders ?? base.orders);
@@ -983,11 +1083,28 @@ export function SystemPanel({ state, patch, onToast, onLog }: PanelBase) {
         patch("audit", parsed.state.audit ?? base.audit);
         patch("settings", { ...base.settings, ...(parsed.state.settings ?? {}) });
       }
-      if (parsed.content) site.replace(parsed.content);
+      if (parsed.content) {
+        const raw = parsed.content;
+        site.replace(raw.content ?? raw);
+      }
+      if (parsed.control?.pages && parsed.control?.gateways && parsed.control?.providers && parsed.control?.agents) {
+        saveControlState({ ...parsed.control, runs: parsed.control.runs ?? [] });
+      }
+      if (parsed.productOverrides) {
+        clearProductOverrides();
+        for (const [slug, ov] of Object.entries(parsed.productOverrides)) {
+          setProductOverride(slug, ov);
+        }
+      }
+      if (parsed.media) {
+        for (const asset of parsed.media) {
+          if (asset.id && asset.dataUrl) await saveMedia(asset);
+        }
+      }
       onToast("پشتیبان با موفقیت بازیابی شد");
       onLog("بازیابی پنل از فایل پشتیبان", "تنظیمات");
     } catch {
-      onToast("فایل پشتیبان معتبر نیست");
+      onToast("فایل پشتیبان معتبر نیست یا بازیابی کامل نشد");
     }
   };
 
@@ -1029,7 +1146,7 @@ export function SystemPanel({ state, patch, onToast, onLog }: PanelBase) {
 
       <Card title="پشتیبان‌گیری و بازیابی" desc="خروجی شامل همه سفارش‌ها، محصولات، محتوا و مجوزها است" icon={<Download className="size-4.5" />}>
         <div className="flex flex-wrap gap-3">
-          <button onClick={backup} className="btn btn-primary px-5 py-2.5 text-xs">
+          <button onClick={() => void backup()} className="btn btn-primary px-5 py-2.5 text-xs">
             <Download className="size-4" /> دانلود فایل پشتیبان (JSON)
           </button>
           <button onClick={() => fileRef.current?.click()} className="btn btn-ghost px-5 py-2.5 text-xs">

@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, CreditCard, Landmark, ShieldCheck, Truck, Wallet } from "lucide-react";
 import { PageHero } from "@/components/ui";
+import { MobileCheckout } from "@/components/store/MobileCheckout";
 import { createOrder, useCart, type OrderCustomer } from "@/lib/cart";
 import { PAYMENT_METHODS, SHIPPING_METHODS, shippingCost } from "@/data/content";
 import { cn, fa, maskPhone, money, normalizePhone } from "@/lib/format";
@@ -23,9 +24,12 @@ export default function Checkout() {
  if (detailed.length === 0 && Object.values(form).every((v) => v === "")) {
   return (
    <>
-    <PageHero eyebrow="تسویه حساب" title="سبد خرید خالی است" desc="ابتدا محصولی را به سبد اضافه کنید." />
-    <div className="container-x py-16 text-center">
-     <Link to="/products" className="btn btn-primary px-6 py-3 text-sm">رفتن به فروشگاه <ArrowLeft className="size-4" /></Link>
+    <div className="lg:hidden"><MobileCheckout /></div>
+    <div className="hidden lg:block">
+     <PageHero eyebrow="تسویه حساب" title="سبد خرید خالی است" desc="ابتدا محصولی را به سبد اضافه کنید." />
+     <div className="container-x py-16 text-center">
+      <Link to="/products" className="btn btn-primary px-6 py-3 text-sm">رفتن به فروشگاه <ArrowLeft className="size-4" /></Link>
+     </div>
     </div>
    </>
   );
@@ -57,6 +61,8 @@ export default function Checkout() {
 
  return (
   <>
+   <div className="lg:hidden"><MobileCheckout /></div>
+   <div className="hidden lg:block">
    <PageHero eyebrow="تسویه حساب" title="تکمیل سفارش" desc="اطلاعات ارسال را وارد کنید و روش پرداخت را انتخاب کنید" />
    <div className="container-x py-10 lg:py-14">
     {/* steps */}
@@ -188,6 +194,7 @@ export default function Checkout() {
       </div>
      </aside>
     </form>
+   </div>
    </div>
   </>
  );

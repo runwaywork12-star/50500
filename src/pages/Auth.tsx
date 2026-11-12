@@ -9,17 +9,20 @@ import {
   KeyRound,
   Lock,
   Mail,
+  Minus,
   Phone,
+  Plus,
   Palette,
   ShieldCheck,
   ShoppingBag,
   Truck,
   UserRound,
+  Wallet,
   UserPlus,
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { useAuth, emailIssue, normalizePhone, passwordIssue, phoneIssue } from "@/lib/auth.tsx";
-import { findOrders } from "@/lib/cart";
+import { findOrders, useCart } from "@/lib/cart";
 import { ORDER_STATUSES } from "@/data/content";
 import { img } from "@/lib/images";
 import { cn, fa, money } from "@/lib/format";
@@ -110,6 +113,7 @@ function Field({
   autoComplete,
   icon,
   inputMode,
+  hint,
 }: {
   id: string;
   label: string;
@@ -122,6 +126,7 @@ function Field({
   autoComplete?: string;
   icon?: ReactNode;
   inputMode?: "text" | "tel" | "email" | "numeric";
+  hint?: string;
 }) {
   return (
     <label className="grid gap-1.5" htmlFor={id}>
@@ -142,20 +147,21 @@ function Field({
         />
       </span>
       {error && <span className="text-[11px] font-bold text-rose-400">{error}</span>}
+      {hint && !error && <span className="text-[10px] leading-5 tfaint">{hint}</span>}
     </label>
   );
 }
 
 function AuthShell({ children, mode }: { children: ReactNode; mode: "login" | "register" | "forgot" }) {
   return (
-    <div className="grid lg:min-h-[calc(100vh-120px)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+    <div className="auth-shell grid lg:min-h-[calc(100vh-120px)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
       {/* form column — right side in RTL */}
       <div className="flex items-center justify-center px-4 py-7 sm:px-8 sm:py-9 lg:py-10">
         <div className="w-full max-w-md">{children}</div>
       </div>
 
       {/* brand column — left side in RTL */}
-      <div className="relative hidden overflow-hidden border-e bd lg:block">
+      <div className="auth-brand-panel relative hidden overflow-hidden border-e bd lg:block">
         <img
           src={img("images/hero-mat.webp")}
           alt=""
@@ -165,7 +171,7 @@ function AuthShell({ children, mode }: { children: ReactNode; mode: "login" | "r
         <div className="absolute inset-0 bg-linear-to-l from-black/85 via-black/55 to-black/70" />
         <div className="stitch-bg absolute inset-0 opacity-25" />
 
-        <div className="relative flex h-full flex-col justify-between p-10 xl:p-14">
+        <div className="auth-brand-content relative flex h-full flex-col justify-between p-10 xl:p-14">
           <Logo />
 
           <div className="max-w-md">
@@ -183,7 +189,7 @@ function AuthShell({ children, mode }: { children: ReactNode; mode: "login" | "r
               {[
                 { icon: ShieldCheck, title: "۱۲ ماه گارانتی واقعی", desc: "تعویض بدون قید و شرط محصولات 50500" },
                 { icon: Truck, title: "رهگیری لحظه‌ای سفارش", desc: "از تولید تا تحویل، وضعیت سفارش روشن است" },
-                { icon: Palette, title: "ذخیره ترکیب رنگ دلخواه", desc: "۷ رنگ چرم و ۸ رنگ نخ گلدوزی" },
+                { icon: Palette, title: "ذخیره ترکیب رنگ دلخواه", desc: "۶ رنگ چرم و ۸ رنگ نخ گلدوزی" },
               ].map((b) => (
                 <li key={b.title} className="flex items-start gap-3.5">
                   <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-brand-500/35 bg-brand-500/15 text-brand-300 backdrop-blur">
@@ -236,7 +242,7 @@ function FormShell({
 /* ---------------------------------- login ---------------------------------- */
 
 export function Login() {
-  const { login, demoEmail } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/account";
@@ -285,11 +291,6 @@ export function Login() {
         <button type="button" onClick={submit} className="btn btn-primary shine w-full py-3.5 text-sm">
           <Lock className="size-4" /> ورود به حساب
         </button>
-
-        <p className="rounded-xl border border-dashed bd px-3 py-2.5 text-[11px] leading-6 tdim">
-          نسخه نمایشی: برای ورود، اول از <Link to="/register" className="font-bold text-brand-300 hover:underline">ثبت‌نام</Link> یک حساب بسازید؛
-          ایمیل نمونه پیشنهادی <b className="font-mono" dir="ltr">{demoEmail}</b> است.
-        </p>
       </FormShell>
     </AuthShell>
   );
@@ -300,7 +301,11 @@ export function Login() {
 export function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", confirm: "" });
+  const location = useLocation();
+  const prefillPhone = (location.state as { phone?: string } | null)?.phone ?? "";
+  /* Guest checkout returns here with the phone the customer already typed. */
+  const [withPassword, setWithPassword] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", phone: prefillPhone, password: "", confirm: "" });
   const [terms, setTerms] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -312,16 +317,23 @@ export function Register() {
   const submit = () => {
     const next: Record<string, string> = {};
     if (form.name.trim().length < 3) next.name = "نام و نام خانوادگی را کامل وارد کنید.";
-    const emailErr = emailIssue(form.email);
-    if (emailErr) next.email = emailErr;
     const phoneErr = phoneIssue(form.phone);
     if (phoneErr) next.phone = phoneErr;
-    const passErr = passwordIssue(form.password);
-    if (passErr) next.password = passErr;
-    if (form.confirm !== form.password) next.confirm = "تکرار رمز عبور مطابقت ندارد.";
+    if (withPassword) {
+      const emailErr = emailIssue(form.email);
+      if (emailErr) next.email = emailErr;
+      const passErr = passwordIssue(form.password);
+      if (passErr) next.password = passErr;
+      if (form.confirm !== form.password) next.confirm = "تکرار رمز عبور مطابقت ندارد.";
+    }
     if (!terms) next.terms = "برای ثبت‌نام باید قوانین را بپذیرید.";
     if (Object.keys(next).length) return setErrors(next);
-    const res = register({ name: form.name, email: form.email, phone: form.phone, password: form.password });
+    const res = register({
+      name: form.name,
+      phone: form.phone,
+      email: withPassword ? form.email : undefined,
+      password: withPassword ? form.password : undefined,
+    });
     if (!res.ok) return setErrors({ form: res.error });
     navigate("/account", { replace: true, state: { notice: `خوش آمدید ${form.name.trim()}، حساب شما ساخته شد.` } });
   };
@@ -330,7 +342,7 @@ export function Register() {
     <AuthShell mode="register">
       <FormShell
         title="ساخت حساب کاربری"
-        subtitle="نام، ایمیل و موبایل کافی است؛ شماره موبایل برای رهگیری سفارش لازم است."
+        subtitle="فقط نام و شماره موبایل کافی است — بدون رمز، بدون ایمیل اجباری."
         footer={
           <>
             قبلاً ثبت‌نام کرده‌اید؟{" "}
@@ -341,10 +353,10 @@ export function Register() {
         {errors.form && <p className="rounded-xl bg-rose-500/10 px-3 py-2.5 text-xs font-bold text-rose-400">{errors.form}</p>}
 
         <Field id="reg-name" label="نام و نام خانوادگی" value={form.name} onChange={set("name")} error={errors.name} autoComplete="name" placeholder="مثلاً: علی محمدی" icon={<UserPlus className="size-4" />} />
-        <Field id="reg-email" label="ایمیل" value={form.email} onChange={set("email")} error={errors.email} dir="ltr" inputMode="email" autoComplete="email" placeholder="name@mail.com" icon={<Mail className="size-4" />} />
         <Field
           id="reg-phone"
           label="شماره موبایل"
+          hint="برای رهگیری سفارش استفاده می‌شود"
           value={form.phone}
           onChange={(v) => { set("phone")(v.replace(/[^\d۰-۹-]/g, "")); }}
           error={errors.phone}
@@ -354,8 +366,30 @@ export function Register() {
           placeholder="09121234567"
           icon={<Phone className="size-4" />}
         />
-        <PasswordField id="reg-pass" label="رمز عبور" value={form.password} onChange={set("password")} autoComplete="new-password" error={errors.password} hint="حداقل ۸ کاراکتر با یک حرف و یک عدد" />
-        <PasswordField id="reg-confirm" label="تکرار رمز عبور" value={form.confirm} onChange={set("confirm")} autoComplete="new-password" error={errors.confirm} />
+
+        <div className="rounded-2xl border border-dashed bd p-3">
+          <button
+            type="button"
+            onClick={() => setWithPassword((v) => !v)}
+            className="flex w-full items-center justify-between gap-2 text-start text-[11.5px] font-bold"
+            aria-expanded={withPassword}
+          >
+            <span className={withPassword ? "text-brand-300" : "tdim"}>
+              {withPassword ? "می‌خواهم رمز و ایمیل هم داشته باشم" : "می‌خواهم رمز و ایمیل هم داشته باشم (اختیاری)"}
+            </span>
+            <span className={cn("grid size-5 place-items-center rounded-full transition", withPassword ? "bg-brand-500 text-white" : "soft tfaint")}>
+              {withPassword ? <Minus className="size-3" /> : <Plus className="size-3" />}
+            </span>
+          </button>
+
+          {withPassword && (
+            <div className="mt-3 grid gap-3">
+              <Field id="reg-email" label="ایمیل" value={form.email} onChange={set("email")} error={errors.email} dir="ltr" inputMode="email" autoComplete="email" placeholder="name@mail.com" icon={<Mail className="size-4" />} />
+              <PasswordField id="reg-pass" label="رمز عبور" value={form.password} onChange={set("password")} autoComplete="new-password" error={errors.password} hint="حداقل ۸ کاراکتر با یک حرف و یک عدد" />
+              <PasswordField id="reg-confirm" label="تکرار رمز عبور" value={form.confirm} onChange={set("confirm")} autoComplete="new-password" error={errors.confirm} />
+            </div>
+          )}
+        </div>
 
         <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border bd p-3 transition soft-h">
           <input type="checkbox" className="mt-0.5 size-4 shrink-0 accent-[#ff6b1a]" checked={terms} onChange={(e) => { setTerms(e.target.checked); setErrors((x) => ({ ...x, terms: "" })); }} />
@@ -368,6 +402,9 @@ export function Register() {
         <button type="button" onClick={submit} className="btn btn-primary shine w-full py-3.5 text-sm">
           <UserPlus className="size-4" /> ایجاد حساب کاربری
         </button>
+        <p className="text-center text-[10px] leading-5 tfaint">
+          بدون رمز هم می‌توانید ثبت‌نام کنید؛ رمز و ایمیل را بعداً از «حساب من» اضافه کنید.
+        </p>
       </FormShell>
     </AuthShell>
   );
@@ -466,6 +503,7 @@ export function ForgotPassword() {
 
 export function Account() {
   const { user, logout, updateProfile, changePassword } = useAuth();
+  const { count } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
   const notice = (location.state as { notice?: string } | null)?.notice;
@@ -491,32 +529,72 @@ export function Account() {
     if (res.ok) setPw({ current: "", next: "", confirm: "" });
   };
 
+  const spent = orders.reduce((sum, o) => sum + o.total, 0);
+  const itemsBought = orders.reduce((sum, o) => sum + o.items.reduce((q, it) => q + it.qty, 0), 0);
+  const activeOrders = orders.filter((o) => ["pending", "producing", "confirmed"].includes(o.status)).length;
+  const shipped = orders.filter((o) => o.status === "shipped").length;
+  const firstName = user.name.split(" ")[0];
+
   return (
-    <div className="container-x py-10 lg:py-14">
-      <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-black tracking-[.25em] text-brand-400">50500 ACCOUNT</p>
-          <h1 className="mt-2 text-2xl font-black sm:text-3xl">
-            سلام، <span className="text-gradient">{user.name}</span>
-          </h1>
-          <p className="mt-2 text-xs tdim">
-            <span dir="ltr" className="font-mono">{user.email}</span> · <span dir="ltr" className="font-mono">{user.phone}</span>
-          </p>
+    <div className="container-x py-6 lg:py-12">
+      {/* welcome hero */}
+      <section className="relative overflow-hidden rounded-[1.6rem] border bd p-5 sm:p-7" style={{ background: "var(--surface-1)" }}>
+        <div className="pointer-events-none absolute inset-0 opacity-70" style={{ background: "radial-gradient(60% 100% at 85% 20%, rgb(255 107 26 / .14), transparent 60%)" }} />
+        <div className="relative flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-brand-400 to-brand-700 text-lg font-black text-white">
+              {user.name.trim().slice(0, 1)}
+            </span>
+            <div>
+              <p className="text-[10px] font-black tracking-[.25em] text-brand-400">50500.SHOP · حساب کاربری</p>
+              <h1 className="mt-0.5 text-xl font-black sm:text-2xl">
+                سلام، <span className="text-gradient">{firstName}</span>
+              </h1>
+              <p className="mt-0.5 text-xs tdim">
+                <span dir="ltr" className="font-mono">{user.email}</span> · <span dir="ltr" className="font-mono">{user.phone}</span>
+              </p>
+            </div>
+          </div>
+          <Link to="/products" className="btn btn-primary shine px-4 py-2.5 text-xs" aria-label="شروع خرید">
+            شروع خرید
+          </Link>
+          <button
+            onClick={() => { logout(); navigate("/"); }}
+            className="btn btn-ghost px-4 py-2.5 text-xs"
+          >
+            خروج از حساب
+          </button>
         </div>
-        <button
-          onClick={() => { logout(); navigate("/"); }}
-          className="btn btn-ghost px-4 py-2.5 text-xs"
-        >
-          خروج از حساب
-        </button>
-      </div>
 
-      {notice && <p className="mb-5 rounded-xl bg-emerald-500/10 px-4 py-3 text-xs font-bold text-emerald-400">{notice}</p>}
+        {notice && <p className="relative mt-4 rounded-xl bg-emerald-500/10 px-4 py-3 text-xs font-bold text-emerald-400">{notice}</p>}
 
-      <div className="grid gap-5 lg:grid-cols-[1.25fr_1fr]">
+        {/* KPIs */}
+        <div className="relative mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          {[
+            { label: "سفارش‌ها", value: fa(orders.length), sub: activeOrders > 0 ? `${fa(activeOrders)} در جریان` : "کامل شده", icon: ShoppingBag },
+            { label: "اقلام خریداری‌شده", value: fa(itemsBought), sub: shipped > 0 ? `${fa(shipped)} در راه` : "ثبت", icon: Package },
+            { label: "در سبد", value: fa(count), sub: count > 0 ? "آماده تسویه" : "خالی", icon: Wallet },
+            { label: "مجموع خرج", value: money(spent), sub: "تومان", icon: Truck },
+          ].map((k) => (
+            <div key={k.label} className="rounded-2xl border bd p-3 sm:p-4" style={{ background: "var(--field)" }}>
+              <div className="flex items-center justify-between gap-1.5">
+                <span className="text-[10px] font-bold leading-4 tfaint sm:text-[11px]">{k.label}</span>
+                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-brand-500/10 text-brand-400 sm:size-9 sm:rounded-xl"><k.icon className="size-4 sm:size-4.5" /></span>
+              </div>
+              <p className="mt-1.5 text-sm font-black leading-5 sm:mt-2 sm:text-lg">{k.value}</p>
+              <p className="mt-0.5 text-[9px] leading-4 tfaint sm:text-[10px]">{k.sub}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="mt-5 grid gap-5 lg:grid-cols-[1.25fr_1fr]">
         {/* orders */}
         <section className="rounded-3xl border bd p-5 sm:p-6" style={{ background: "var(--surface-1)" }}>
-          <h2 className="flex items-center gap-2 text-sm font-black"><ShoppingBag className="size-4 text-brand-400" /> سفارش‌های من</h2>
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <h2 className="flex items-center gap-2 text-sm font-black"><ShoppingBag className="size-4 text-brand-400" /> سفارش‌های من</h2>
+            {orders.length > 0 && <span className="rounded-full bg-brand-500/15 px-2.5 py-1 text-[10px] font-black text-brand-300">{fa(orders.length)} سفارش</span>}
+          </div>
           {orders.length === 0 ? (
             <div className="mt-5 grid place-items-center gap-3 rounded-2xl border border-dashed bd py-10 text-center">
               <Package className="size-8 tfaint" />
@@ -526,7 +604,7 @@ export function Account() {
           ) : (
             <ul className="mt-4 grid gap-2.5">
               {orders.map((o) => {
-                const st = ORDER_STATUSES.find((s) => s.id === o.status) ?? ORDER_STATUSES[0];
+                const st = ORDER_STATUSES.find((st) => st.id === o.status) ?? ORDER_STATUSES[0];
                 return (
                   <li key={o.code} className="rounded-2xl border bd p-3.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">

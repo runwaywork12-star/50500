@@ -11,7 +11,10 @@ import {
   ClipboardList,
   Clock,
   CreditCard,
+  Eye,
+  EyeOff,
   ExternalLink,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -36,22 +39,50 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import { Coins, FileText, Handshake, History, UserCog } from "lucide-react";
+import { Coins, FileText, Handshake, History, Layers, Pencil, UserCog } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { Bot, Globe, Image as ImageIcon, Rocket } from "lucide-react";
 import { AffiliatesPanel, AuditPanel, ContentPanel, FinancePanel, StaffPanel, SystemPanel } from "@/pages/admin/Panels";
+import { PagesPanel } from "@/pages/admin/PagesPanel";
+import { MediaPanel } from "@/pages/admin/MediaPanel";
+import { PaymentsPanel } from "@/pages/admin/PaymentsPanel";
+import { AgentsPanel } from "@/pages/admin/AgentsPanel";
+import { DeployPanel } from "@/pages/admin/DeployPanel";
+import { MediaPicker } from "@/pages/admin/MediaPicker";
+import { clearProductOverrides, setProductOverride } from "@/lib/product-overrides";
 import {
   ORDER_STATUS,
   customerRows,
   dateFa,
+  downloadCSV,
+  getAdminPassword,
+  setAdminPassword,
+
   loadAdmin,
   makeAuditEntry,
+  mergeLiveOrders,
   money,
+  ordersToCSV,
+  patchStoredOrder,
+  printInvoice,
+  printLabel,
   resetAdmin,
   revenueSeries,
   saveAdmin,
+  shippingLabel,
   type AdminOrder,
   type AdminState,
 } from "@/lib/admin";
+import { BRANDS } from "@/lib/catalog";
+import {
+  getCustomProducts,
+  getSubItems,
+  makeId,
+  makeSlug,
+  setCustomProducts,
+  setSubItems,
+  type CustomProduct,
+} from "@/lib/product-overrides";
 import { cn, fa } from "@/lib/format";
 
 type Module =
@@ -66,7 +97,12 @@ type Module =
   | "reviews"
   | "staff"
   | "settings"
-  | "audit";
+  | "audit"
+  | "pages"
+  | "media"
+  | "payments"
+  | "agents"
+  | "deploy";
 
 const NAV: { group: string; items: { id: Module; label: string; icon: typeof LayoutDashboard }[] }[] = [
   { group: "مرکز کنترل", items: [
@@ -91,6 +127,21 @@ const NAV: { group: string; items: { id: Module; label: string; icon: typeof Lay
       { id: "reviews", label: "نظرات", icon: MessageSquare },
       { id: "staff", label: "کارکنان", icon: UserCog },
       { id: "settings", label: "تنظیمات", icon: Settings },
+    ],
+  },
+  {
+    group: "کنترل پیشرفته",
+    items: [
+      { id: "pages", label: "صفحات و SEO", icon: Globe },
+      { id: "media", label: "کتابخانه تصاویر", icon: ImageIcon },
+      { id: "payments", label: "درگاه‌های پرداخت", icon: CreditCard },
+      { id: "agents", label: "ایجنت‌های AI", icon: Bot },
+    ],
+  },
+  {
+    group: "زیرساخت",
+    items: [
+      { id: "deploy", label: "استقرار و امنیت", icon: Rocket },
     ],
   },
 ];
@@ -136,6 +187,11 @@ function writeAuth(value: boolean) {
 function statusMeta(id: string) {
   return ORDER_STATUS.find((s) => s.id === id) ?? ORDER_STATUS[0];
 }
+
+const LEATHER_NAMES: Record<string, string> = { black: "مشکی", brown: "قهوه‌ای", tan: "عسلی", cream: "کرم", gray: "طوسی", burgundy: "زرشکی", navy: "سرمه‌ای" };
+const THREAD_NAMES: Record<string, string> = { red: "قرمز", orange: "نارنجی", gold: "طلایی", cream: "کرم", brown: "قهوه‌ای", white: "سفید", blue: "آبی", black: "مشکی" };
+const leatherName = (id: string) => LEATHER_NAMES[id] ?? id;
+const threadName = (id: string) => THREAD_NAMES[id] ?? id;
 
 /* ------------------------------------ shell ------------------------------------ */
 
@@ -313,6 +369,11 @@ export default function Admin() {
           {module === "reviews" && <Reviews state={state} onChange={(reviews) => patch("reviews", reviews)} onToast={notify} />}
           {module === "staff" && <StaffPanel state={state} patch={patch} onToast={notify} onLog={onLog} />}
           {module === "audit" && <AuditPanel state={state} patch={patch} onToast={notify} onLog={onLog} />}
+          {module === "pages" && <PagesPanel onToast={notify} onOpenContent={() => setModule("cms")} />}
+          {module === "media" && <MediaPanel onToast={notify} />}
+          {module === "payments" && <PaymentsPanel onToast={notify} orders={state.orders} />}
+          {module === "agents" && <AgentsPanel onToast={notify} orders={state.orders} />}
+          {module === "deploy" && <DeployPanel onToast={notify} />}
           {module === "settings" && (
             <>
               <SettingsPanel
@@ -321,8 +382,15 @@ export default function Admin() {
                 onToast={notify}
                 onReset={() => {
                   resetAdmin();
+                  clearProductOverrides();
                   setState(loadAdmin());
                   notify("داده‌های نمایشی بازنشانی شد");
+                }}
+                onChangePassword={(pw) => {
+                  setAdminPassword(pw);
+                  sessionStorage.removeItem("50500_admin_auth");
+                  setAuthed(false);
+                  notify("رمز عبور مدیر تغییر کرد؛ با رمز جدید دوباره وارد شوید");
                 }}
               />
               <SystemPanel state={state} patch={patch} onToast={notify} onLog={onLog} />
@@ -345,12 +413,27 @@ export default function Admin() {
 function Login({ onLogin }: { onLogin: () => void }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [resetMode, setResetMode] = useState(false);
+  const [newPw, setNewPw] = useState("");
+  const [newPw2, setNewPw2] = useState("");
+
   const submit = () => {
-    if (password === "50500admin" || password === "") {
-      onLogin();
-    } else {
-      setError("رمز نادرست است. برای نسخه نمایشی روی «ورود سریع» بزنید.");
-    }
+    if (password === getAdminPassword()) { onLogin(); return; }
+    setError("رمز نادرست است.");
+  };
+
+  /* Owner forgot the demo password: build a new one right here. This is a
+     demo-only escape hatch — the real deployment uses ADMIN_PASSWORD env var
+     plus TOTP, so this path is never exposed publicly. */
+  const buildNewPassword = () => {
+    if (newPw.length < 8) { setError("رمز جدید باید حداقل ۸ کاراکتر باشد."); return; }
+    if (newPw !== newPw2) { setError("تکرار رمز با رمز جدید مطابقت ندارد."); return; }
+    setAdminPassword(newPw);
+    setPassword(newPw);
+    setResetMode(false);
+    setError("");
+    onLogin();
   };
   return (
     <div dir="rtl" className="grid min-h-screen place-items-center p-4" style={{ background: "var(--bg)" }}>
@@ -365,29 +448,89 @@ function Login({ onLogin }: { onLogin: () => void }) {
 
           <label className="mt-5 grid gap-1.5">
             <span className="text-xs font-bold tdim">ایمیل مدیر</span>
-            <input className="input" dir="ltr" defaultValue="amir@50500.co" />
+            <input className="input" dir="ltr" defaultValue="amir@50500.shop" />
           </label>
           <label className="mt-3 grid gap-1.5">
             <span className="text-xs font-bold tdim">رمز عبور</span>
-            <input
-              className="input"
-              dir="ltr"
-              type="password"
-              placeholder="50500admin"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && submit()}
-            />
+            <span className="relative block">
+              <input
+                className="input pe-11"
+                dir="ltr"
+                type={showPw ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submit()}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw((v) => !v)}
+                aria-label={showPw ? "پنهان‌کردن رمز" : "نمایش رمز"}
+                className="absolute inset-y-0 end-0 grid w-11 place-items-center tfaint transition hover:text-brand-300"
+              >
+                {showPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </span>
           </label>
           {error && <p className="mt-2 text-[11px] font-bold text-rose-400">{error}</p>}
 
           <button onClick={submit} className="btn btn-primary mt-5 w-full py-3 text-sm">
             <ShieldCheck className="size-4" /> ورود به پنل
           </button>
-          <button onClick={onLogin} className="btn btn-ghost mt-2 w-full py-2.5 text-xs">
-            ورود سریع نسخه نمایشی
-          </button>
           <p className="mt-4 text-center text-[10px] leading-5 tfaint">در نسخه واقعی، ورود با رمز محیطی و تأیید دومرحله‌ای (TOTP) انجام می‌شود.</p>
+
+          {!resetMode ? (
+            <details className="mt-3 rounded-xl border bd px-3 py-2.5 text-[11px] leading-6 tdim" style={{ background: "var(--field)" }}>
+              <summary className="cursor-pointer font-bold text-brand-300">راهنمای ورود و ساخت رمز جدید (کلیک کنید)</summary>
+              <div className="mt-2 grid gap-1.5">
+                <p><b>آدرس:</b> <span dir="ltr" className="font-mono">/admin</span></p>
+                <p><b>ایمیل:</b> <span dir="ltr" className="font-mono">amir@50500.shop</span></p>
+                <p><b>رمز پیش‌فرض:</b> <span dir="ltr" className="font-mono">50500admin</span></p>
+                <button
+                  type="button"
+                  onClick={() => { setResetMode(true); setError(""); }}
+                  className="btn btn-primary mt-2 w-full py-2.5 text-[11px]"
+                >
+                  <KeyRound className="size-3.5" /> ساخت رمز جدید همین‌جا
+                </button>
+                <p className="tfaint">اگر رمز قبلی را فراموش کردی، رمز جدید بساز و وارد شو.</p>
+              </div>
+            </details>
+          ) : (
+            <div className="mt-3 grid gap-2 rounded-xl border border-brand-500/35 bg-brand-500/[0.07] px-3 py-3 text-[11px]" style={{ background: "var(--field)" }}>
+              <p className="font-black text-brand-300">ساخت رمز جدید برای پنل</p>
+              <input
+                className="input"
+                dir="ltr"
+                type="password"
+                placeholder="رمز جدید (حداقل ۸ کاراکتر)"
+                value={newPw}
+                onChange={(e) => setNewPw(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && buildNewPassword()}
+                autoComplete="new-password"
+              />
+              <input
+                className="input"
+                dir="ltr"
+                type="password"
+                placeholder="تکرار رمز جدید"
+                value={newPw2}
+                onChange={(e) => setNewPw2(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && buildNewPassword()}
+                autoComplete="new-password"
+              />
+              <div className="flex gap-2">
+                <button type="button" onClick={buildNewPassword} className="btn btn-primary flex-1 py-2.5 text-[11px]">
+                  <KeyRound className="size-3.5" /> ذخیره و ورود
+                </button>
+                <button type="button" onClick={() => { setResetMode(false); setError(""); }} className="btn btn-ghost px-3 py-2.5 text-[11px]">
+                  انصراف
+                </button>
+              </div>
+              <p className="tfaint">رمز جدید در همین مرورگر ذخیره می‌شود و از دفعه بعد لازم است.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -572,18 +715,71 @@ function Dashboard({ state, onGo }: { state: AdminState; onGo: (m: Module) => vo
 /* ------------------------------------ orders ------------------------------------ */
 
 function Orders({ orders, onChange, onToast, onLog, search }: { orders: AdminOrder[]; onChange: (o: AdminOrder[]) => void; onToast: (m: string) => void; onLog: (action: string, module: string) => void; search: string }) {
+  const [version, setVersion] = useState(0);
+  const live = useMemo(() => mergeLiveOrders(orders), [orders, version]);
   const [status, setStatus] = useState("all");
   const [open, setOpen] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState("confirmed");
   const perPage = 8;
-  const filtered = orders.filter((o) => status === "all" || o.status === status);
+
+  const filtered = live.filter((o) => status === "all" || o.status === status);
   const pages = Math.max(1, Math.ceil(filtered.length / perPage));
   const current = filtered.slice((Math.min(page, pages) - 1) * perPage, Math.min(page, pages) * perPage);
-  const selected = orders.find((o) => o.code === open);
+  const detail = live.find((o) => o.code === open) ?? null;
 
   const update = (code: string, patch: Partial<AdminOrder>, action?: string) => {
-    onChange(orders.map((o) => (o.code === code ? { ...o, ...patch } : o)));
+    if (patchStoredOrder(code, patch)) {
+      setVersion((v) => v + 1);
+    } else {
+      onChange(orders.map((o) => (o.code === code ? { ...o, ...patch } : o)));
+    }
     if (action) onLog(action, "سفارش‌ها");
+  };
+
+  const toggle = (code: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  };
+  const allPageSelected = current.length > 0 && current.every((o) => selected.has(o.code));
+  const togglePage = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allPageSelected) current.forEach((o) => next.delete(o.code));
+      else current.forEach((o) => next.add(o.code));
+      return next;
+    });
+  };
+
+  const applyBulkStatus = () => {
+    selected.forEach((code) => {
+      if (!patchStoredOrder(code, { status: bulkStatus })) {
+        onChange(orders.map((o) => (o.code === code ? { ...o, status: bulkStatus } : o)));
+      }
+    });
+    setVersion((v) => v + 1);
+    onLog(`اعمال وضعیت «${ORDER_STATUS.find((s) => s.id === bulkStatus)?.name ?? bulkStatus}» برای ${fa(selected.size)} سفارش انتخابی`, "سفارش‌ها");
+    onToast(`وضعیت ${fa(selected.size)} سفارش به‌روزرسانی شد`);
+    setSelected(new Set());
+  };
+
+  const exportCSV = (only: AdminOrder[] | null) => {
+    const list = only ?? live;
+    downloadCSV(`50500-orders-${new Date().toISOString().slice(0, 10)}.csv`, ordersToCSV(list));
+    onToast(`خروجی ${fa(list.length)} سفارش دانلود شد`);
+  };
+
+  const printLabels = (codes: string[]) => {
+    codes.forEach((code) => {
+      const o = live.find((x) => x.code === code);
+      if (o) printLabel(o);
+    });
+    onToast(`برچسب ${fa(codes.length)} سفارش برای چاپ آماده شد`);
   };
 
   return (
@@ -591,46 +787,52 @@ function Orders({ orders, onChange, onToast, onLog, search }: { orders: AdminOrd
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black">سفارش‌ها</h1>
-          <p className="mt-1 text-xs tdim">{fa(orders.length)} سفارش {search && `— نتیجه جستجو برای «${search}»`}</p>
+          <p className="mt-1 text-xs tdim">{fa(live.length)} سفارش شامل سفارش‌های زنده فروشگاه {search && `— نتیجه جستجو برای «${search}»`}</p>
         </div>
-        <button
-          onClick={() => {
-            const csv = ["code,customer,phone,total,status,payment", ...orders.map((o) => [o.code, o.customer, o.phone, o.total, o.status, o.payment].join(","))].join("\n");
-            const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = "50500-orders.csv";
-            a.click();
-            URL.revokeObjectURL(a.href);
-            onToast("فایل CSV سفارش‌ها دانلود شد");
-          }}
-          className="btn btn-ghost px-4 py-2.5 text-xs"
-        >
-          <Save className="size-4" /> خروجی CSV
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => exportCSV(null)} className="btn btn-ghost px-4 py-2.5 text-xs"><Save className="size-4" /> خروجی CSV (همه)</button>
+          <button onClick={() => exportCSV(live.filter((o) => selected.has(o.code)))} disabled={selected.size === 0} className="btn btn-ghost px-4 py-2.5 text-xs disabled:opacity-40"><Save className="size-4" /> خروجی CSV (انتخاب‌شده)</button>
+        </div>
       </div>
 
-      <div className="flex flex-wrap gap-1.5 rounded-2xl border bd p-1.5" style={{ background: "var(--surface-1)" }}>
+      {/* bulk action bar */}
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-brand-500/30 bg-brand-500/10 p-3">
+          <span className="text-xs font-black text-brand-300">{fa(selected.size)} سفارش انتخاب شد</span>
+          <select className="input !w-auto !py-1.5 text-xs" value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)}>
+            {ORDER_STATUS.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <button onClick={applyBulkStatus} className="btn btn-primary px-4 py-2 text-xs"><Check className="size-4" /> اعمال وضعیت</button>
+          <button onClick={() => printLabels([...selected])} className="btn btn-ghost px-4 py-2 text-xs"><Printer className="size-4" /> چاپ برچسب ارسال</button>
+          <button onClick={() => setSelected(new Set())} className="text-xs font-bold tdim hover:text-white">حذف انتخاب</button>
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-1.5">
         {[{ id: "all", name: "همه" }, ...ORDER_STATUS].map((s) => (
           <button
             key={s.id}
             onClick={() => { setStatus(s.id); setPage(1); }}
-            className={cn("rounded-xl px-3 py-1.5 text-[11px] font-bold transition", status === s.id ? "bg-brand-500 text-white" : "tdim hover:bg-white/5")}
+            className={cn(
+              "rounded-xl border px-3 py-1.5 text-[11px] font-bold transition",
+              status === s.id ? "border-brand-500/60 bg-brand-500/15 text-brand-300" : "bd tdim soft-h",
+            )}
           >
             {s.name}
-            <span className="ms-1 opacity-60">
-              {fa(s.id === "all" ? orders.length : orders.filter((o) => o.status === s.id).length)}
-            </span>
+            <span className="ms-1 opacity-60">{fa(s.id === "all" ? live.length : live.filter((o) => o.status === s.id).length)}</span>
           </button>
         ))}
       </div>
 
       <div className="overflow-x-auto rounded-2xl border bd" style={{ background: "var(--surface-1)" }}>
-        <table className="w-full min-w-[760px] text-start text-xs">
+        <table className="w-full min-w-[900px] text-xs">
           <thead>
             <tr className="border-b bd text-[10px] tfaint" style={{ background: "var(--surface-2)" }}>
-              {["کد", "مشتری", "شهر", "مبلغ", "وضعیت", "پرداخت", "تاریخ", ""].map((h) => (
-                <th key={h} className="px-4 py-3 text-start font-bold">{h}</th>
+              <th className="w-8 px-3 py-3">
+                <input type="checkbox" className="size-3.5 accent-[#ff6b1a]" checked={allPageSelected} onChange={togglePage} aria-label="انتخاب همه" />
+              </th>
+              {["کد", "مشتری", "شهر / نشانی", "مبلغ", "وضعیت", "پرداخت", "تاریخ", ""].map((h) => (
+                <th key={h} className="px-3 py-3 text-start font-bold">{h}</th>
               ))}
             </tr>
           </thead>
@@ -638,25 +840,34 @@ function Orders({ orders, onChange, onToast, onLog, search }: { orders: AdminOrd
             {current.map((o) => {
               const st = statusMeta(o.status);
               return (
-                <tr key={o.code} className="transition hover:bg-white/[0.03]">
-                  <td className="px-4 py-3 font-mono text-[11px] font-bold text-brand-300" dir="ltr">#{o.code}</td>
-                  <td className="px-4 py-3">
+                <tr key={o.code} className="cursor-pointer transition hover:bg-white/[0.03]" onClick={() => setOpen(o.code)}>
+                  <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                    <input type="checkbox" className="size-3.5 accent-[#ff6b1a]" checked={selected.has(o.code)} onChange={() => toggle(o.code)} aria-label={`انتخاب سفارش ${o.code}`} />
+                  </td>
+                  <td className="px-3 py-2.5 font-mono text-[11px] font-bold text-brand-300" dir="ltr">#{o.code}</td>
+                  <td className="px-3 py-2.5">
                     <b className="block text-xs">{o.customer}</b>
                     <span className="font-mono text-[10px] tfaint" dir="ltr">{o.phone}</span>
                   </td>
-                  <td className="px-4 py-3 tdim">{o.city}</td>
-                  <td className="px-4 py-3 font-bold">{money(o.total)}</td>
-                  <td className="px-4 py-3"><span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-bold", TONE[st.tone])}>{st.name}</span></td>
-                  <td className="px-4 py-3"><span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-bold", PAY_TONE[o.payment])}>{PAY_LABEL[o.payment]}</span></td>
-                  <td className="px-4 py-3 text-[10px] tfaint">{dateFa(o.createdAt)}</td>
-                  <td className="px-4 py-3">
-                    <button onClick={() => setOpen(o.code)} className="btn btn-ghost !rounded-lg px-2.5 py-1.5 text-[10px]">جزئیات</button>
+                  <td className="px-3 py-2.5 tdim">
+                    {o.city}
+                    {o.address ? <span className="block max-w-[160px] truncate text-[10px] tfaint">{o.address}</span> : null}
+                  </td>
+                  <td className="px-3 py-2.5 font-bold">{money(o.total)}</td>
+                  <td className="px-3 py-2.5"><span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-bold", TONE[st.tone])}>{st.name}</span></td>
+                  <td className="px-3 py-2.5"><span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-bold", PAY_TONE[o.payment])}>{PAY_LABEL[o.payment]}</span></td>
+                  <td className="px-3 py-2.5 text-[10px] tfaint">{dateFa(o.createdAt)}</td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-1">
+                      <button onClick={(e) => { e.stopPropagation(); setOpen(o.code); }} className="btn btn-ghost !rounded-lg px-2.5 py-1.5 text-[10px]">جزئیات</button>
+                      <button onClick={(e) => { e.stopPropagation(); printLabel(o); }} title="چاپ برچسب" className="grid size-7 place-items-center rounded-lg bd tdim transition soft-h" aria-label="چاپ برچسب"><Printer className="size-3.5" /></button>
+                    </div>
                   </td>
                 </tr>
               );
             })}
             {current.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-10 text-center text-xs tdim">سفارشی با این فیلتر وجود ندارد.</td></tr>
+              <tr><td colSpan={9} className="px-4 py-10 text-center text-xs tdim">سفارشی با این فیلتر وجود ندارد.</td></tr>
             )}
           </tbody>
         </table>
@@ -665,44 +876,42 @@ function Orders({ orders, onChange, onToast, onLog, search }: { orders: AdminOrd
       {pages > 1 && (
         <div className="flex justify-center gap-1.5">
           {Array.from({ length: pages }).map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setPage(i + 1)}
-              className={cn("grid size-8 place-items-center rounded-lg text-xs font-bold transition", page === i + 1 ? "bg-brand-500 text-white" : "border bd tdim hover:bg-white/5")}
-            >
-              {fa(i + 1)}
-            </button>
+            <button key={i} onClick={() => setPage(i + 1)} className={cn("grid size-8 place-items-center rounded-lg text-xs font-bold transition", page === i + 1 ? "bg-brand-500 text-white" : "border bd tdim hover:bg-white/5")}>{fa(i + 1)}</button>
           ))}
         </div>
       )}
 
-      {selected && (
+      {detail && (
         <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setOpen(null)} />
           <div className="absolute inset-y-0 start-0 flex w-full max-w-md flex-col overflow-y-auto border-e bd p-5 shadow-2xl animate-page-in" style={{ background: "var(--panel)" }}>
             <div className="flex items-center justify-between border-b bd pb-4">
               <div>
                 <p className="text-[10px] tfaint">جزئیات سفارش</p>
-                <h2 className="font-mono text-lg font-black text-brand-300" dir="ltr">#{selected.code}</h2>
+                <h2 className="font-mono text-lg font-black text-brand-300" dir="ltr">#{detail.code}</h2>
               </div>
               <button onClick={() => setOpen(null)} className="grid size-9 place-items-center rounded-xl soft" aria-label="بستن"><X className="size-4" /></button>
             </div>
 
+            {/* Full customer information */}
             <div className="mt-4 grid gap-3 text-xs">
               <div className="rounded-xl border bd p-3" style={{ background: "var(--field)" }}>
-                <b className="block">{selected.customer}</b>
-                <span className="mt-1 block font-mono text-[11px] tdim" dir="ltr">{selected.phone}</span>
-                <span className="mt-1 block tdim">{selected.province}، {selected.city}</span>
-                <span className="mt-1 block text-[10px] tfaint">ثبت: {dateFa(selected.createdAt)}</span>
+                <b className="block">{detail.customer}</b>
+                <span className="mt-1 block font-mono text-[11px] tdim" dir="ltr">{detail.phone}</span>
+                <span className="mt-1 block tdim">{detail.province}، {detail.city}</span>
+                {detail.address && <span className="mt-1 block leading-6 tdim">{detail.address}</span>}
+                {detail.postalCode && <span className="mt-1 block tdim">کد پستی: <b dir="ltr">{detail.postalCode}</b></span>}
+                {detail.notes && <span className="mt-1 block rounded-lg bg-amber-400/10 px-2 py-1 text-[11px] text-amber-300">یادداشت مشتری: {detail.notes}</span>}
+                <span className="mt-1 block text-[10px] tfaint">روش ارسال: {shippingLabel(detail.shippingMethod)} · ثبت: {dateFa(detail.createdAt, true)}</span>
               </div>
 
               <div className="grid gap-2">
-                {selected.items.map((it) => (
+                {detail.items.map((it) => (
                   <div key={it.slug + it.title} className="flex items-center gap-2.5 rounded-xl border bd p-2">
                     <img src={it.image} alt="" className="size-10 rounded-lg object-cover" style={{ background: "var(--muted-surface)" }} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[11px] font-bold">{it.title}</span>
-                      <span className="text-[10px] tfaint">× {fa(it.qty)}</span>
+                      <span className="text-[10px] tfaint">× {fa(it.qty)}{it.leather ? ` · چرم ${leatherName(it.leather)}` : ""}{it.thread ? ` · گلدوزی ${threadName(it.thread)}` : ""}</span>
                     </span>
                     <b className="text-[10px]">{money(it.price * it.qty)}</b>
                   </div>
@@ -710,25 +919,19 @@ function Orders({ orders, onChange, onToast, onLog, search }: { orders: AdminOrd
               </div>
 
               <div className="rounded-xl border bd p-3">
-                {[["جمع کالاها", selected.subtotal], ["ارسال", selected.shipping], ["تخفیف", selected.discount]].map(([l, v]) => (
-                  <div key={String(l)} className="flex justify-between py-0.5 text-[11px] tdim"><span>{l}</span><span>{money(Number(v))}</span></div>
+                {([["جمع کالاها", detail.subtotal], ["ارسال", detail.shipping], ["تخفیف", detail.discount]] as [string, number][]).map(([l, v]) => (
+                  <div key={l} className="flex justify-between py-0.5 text-[11px] tdim"><span>{l}</span><span>{v ? money(v) : "—"}</span></div>
                 ))}
-                <div className="mt-2 flex justify-between border-t bd pt-2 text-sm font-black"><span>مبلغ کل</span><span>{money(selected.total)} تومان</span></div>
+                <div className="mt-2 flex justify-between border-t bd pt-2 text-sm font-black"><span>مبلغ کل</span><span>{money(detail.total)} تومان</span></div>
               </div>
 
               <label className="grid gap-1.5">
                 <span className="font-bold tdim">وضعیت سفارش</span>
                 <select
-                    className="input"
-                    value={selected.status}
-                    onChange={(e) =>
-                      update(
-                        selected.code,
-                        { status: e.target.value },
-                        `تغییر وضعیت سفارش #${selected.code} به «${ORDER_STATUS.find((st) => st.id === e.target.value)?.name ?? e.target.value}»`,
-                      )
-                    }
-                  >
+                  className="input"
+                  value={detail.status}
+                  onChange={(e) => update(detail.code, { status: e.target.value }, `تغییر وضعیت سفارش #${detail.code} به «${ORDER_STATUS.find((st) => st.id === e.target.value)?.name ?? e.target.value}»`)}
+                >
                   {ORDER_STATUS.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </label>
@@ -737,10 +940,10 @@ function Orders({ orders, onChange, onToast, onLog, search }: { orders: AdminOrd
                 <span className="font-bold tdim">وضعیت پرداخت</span>
                 <select
                   className="input"
-                  value={selected.payment}
+                  value={detail.payment}
                   onChange={(e) => {
                     const p = e.target.value as AdminOrder["payment"];
-                    update(selected.code, { payment: p, status: p === "paid" && selected.status === "pending" ? "confirmed" : selected.status }, `تغییر پرداخت سفارش #${selected.code} به «${PAY_LABEL[p]}»`);
+                    update(detail.code, { payment: p, status: p === "paid" && detail.status === "pending" ? "confirmed" : detail.status }, `تغییر پرداخت سفارش #${detail.code} به «${PAY_LABEL[p]}»`);
                   }}
                 >
                   {Object.entries(PAY_LABEL).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
@@ -752,31 +955,22 @@ function Orders({ orders, onChange, onToast, onLog, search }: { orders: AdminOrd
                 <input
                   className="input"
                   dir="ltr"
-                  defaultValue={selected.tracking ?? ""}
-                  onBlur={(e) => update(selected.code, { tracking: e.target.value }, `ثبت کد رهگیری برای سفارش #${selected.code}`)}
+                  defaultValue={detail.tracking ?? ""}
+                  onBlur={(e) => update(detail.code, { tracking: e.target.value }, `ثبت کد رهگیری برای سفارش #${detail.code}`)}
                   placeholder="TIPAX-123456"
                 />
               </label>
 
-              <label className="grid gap-1.5">
-                <span className="font-bold tdim">یادداشت داخلی</span>
-                <textarea
-                  className="input min-h-20"
-                  defaultValue={selected.note ?? ""}
-                  onBlur={(e) => update(selected.code, { note: e.target.value }, `ویرایش یادداشت داخلی سفارش #${selected.code}`)}
-                  placeholder="برای تیم پشتیبانی…"
-                />
-              </label>
-
               <div className="mt-1 grid grid-cols-2 gap-2">
-                <button onClick={() => window.print()} className="btn btn-ghost py-2.5 text-xs"><Printer className="size-4" /> چاپ</button>
-                <button
-                  onClick={() => { update(selected.code, { payment: "paid", status: "confirmed" }); onToast("سفارش تأیید و پرداخت‌شده ثبت شد"); }}
-                  className="btn btn-primary py-2.5 text-xs"
-                >
-                  <Check className="size-4" /> تایید پرداخت
-                </button>
+                <button onClick={() => printInvoice(detail)} className="btn btn-ghost py-2.5 text-xs"><Printer className="size-4" /> چاپ فاکتور</button>
+                <button onClick={() => printLabel(detail)} className="btn btn-ghost py-2.5 text-xs"><Printer className="size-4" /> چاپ برچسب</button>
               </div>
+              <button
+                onClick={() => { update(detail.code, { payment: "paid", status: detail.status === "pending" ? "confirmed" : detail.status }, `تأیید پرداخت سفارش #${detail.code}`); onToast("سفارش تأیید و پرداخت‌شده ثبت شد"); }}
+                className="btn btn-primary py-2.5 text-xs"
+              >
+                <Check className="size-4" /> تایید واریز / پرداخت
+              </button>
             </div>
           </div>
         </div>
@@ -792,7 +986,27 @@ function Products({ state, onChange, onToast, onLog }: { state: AdminState; onCh
   const [cat, setCat] = useState("all");
   const [onlyLow, setOnlyLow] = useState(false);
   const [page, setPage] = useState(1);
+  const [imageFor, setImageFor] = useState<string | null>(null);
+  const [form, setForm] = useState<null | {
+    editingSlug: string | null;
+    title: string;
+    category: "embroidered-leather" | "accessories";
+    brandSlug: string;
+    modelSlug: string;
+    accessoryName: string;
+    price: number;
+    comparePrice: number;
+    stock: number;
+    cost: number;
+    image: string | null;
+    body: string;
+    active: boolean;
+  }>(null);
+  const [subFor, setSubFor] = useState<string | null>(null);
+  const [subDraft, setSubDraft] = useState<{ title: string; desc: string; price: number; stock: number }>({ title: "", desc: "", price: 0, stock: 10 });
   const perPage = 10;
+
+  const customs = useMemo(() => new Set(getCustomProducts().map((c) => c.slug)), [state.products]);
 
   const filtered = state.products.filter((p) => {
     if (cat !== "all" && p.category !== cat) return false;
@@ -803,8 +1017,152 @@ function Products({ state, onChange, onToast, onLog }: { state: AdminState; onCh
   const pages = Math.max(1, Math.ceil(filtered.length / perPage));
   const current = filtered.slice((Math.min(page, pages) - 1) * perPage, Math.min(page, pages) * perPage);
 
-  const update = (slug: string, patch: Partial<AdminState["products"][number]>) =>
+  const update = (slug: string, patch: Partial<AdminState["products"][number]>) => {
     onChange(state.products.map((p) => (p.slug === slug ? { ...p, ...patch } : p)));
+    const { title, price, comparePrice, stock, image, active, cost } = patch;
+    setProductOverride(slug, { title, price, comparePrice, stock, image, active, cost });
+  };
+
+  const openAdd = () => setForm({
+    editingSlug: null,
+    title: "",
+    category: "embroidered-leather",
+    brandSlug: "",
+    modelSlug: "",
+    accessoryName: "",
+    price: 7500000,
+    comparePrice: 0,
+    stock: 10,
+    cost: 0,
+    image: null,
+    body: "",
+    active: true,
+  });
+
+  const openEdit = (p: AdminState["products"][number]) => setForm({
+    editingSlug: p.slug,
+    title: p.title,
+    category: p.category,
+    brandSlug: p.brandSlug ?? "",
+    modelSlug: p.modelSlug ?? "",
+    accessoryName: p.category === "accessories" ? (p.brandName ?? "") : "",
+    price: p.price,
+    comparePrice: p.comparePrice ?? 0,
+    stock: p.stock,
+    cost: p.cost,
+    image: p.image,
+    body: "",
+    active: p.active,
+  });
+
+  const onFile = (file: File | undefined) => {
+    if (!file || !form) return;
+    if (!file.type.startsWith("image/")) { onToast("فقط فایل تصویری مجاز است"); return; }
+    const reader = new FileReader();
+    reader.onload = () => setForm((f) => (f ? { ...f, image: String(reader.result) } : f));
+    reader.readAsDataURL(file);
+  };
+
+  const saveForm = () => {
+    if (!form) return;
+    if (form.title.trim().length < 3) { onToast("نام محصول را کامل وارد کنید"); return; }
+    if (form.price <= 0) { onToast("قیمت معتبر نیست"); return; }
+    if (form.category === "accessories" && !form.accessoryName.trim()) { onToast("برای لوازم جانبی، نام دسته (مثلاً «روکش فرمان») را وارد کنید"); return; }
+    const brand = BRANDS.find((b) => b.slug === form.brandSlug);
+    const model = brand?.models.find((m) => m.slug === form.modelSlug);
+    const isCustom = form.editingSlug ? customs.has(form.editingSlug) : true;
+    const base: AdminState["products"][number] = form.editingSlug
+      ? state.products.find((p) => p.slug === form.editingSlug)!
+      : {
+          slug: "", title: "", price: 0, comparePrice: null, stock: 0, category: "embroidered-leather",
+          brandName: undefined, image: "", active: true, cost: 0,
+        };
+    if (isCustom) {
+      const custom: CustomProduct = {
+        slug: base.custom ? base.slug : makeSlug(form.title),
+        title: form.title.trim(),
+        category: form.category,
+        price: form.price,
+        comparePrice: form.comparePrice > form.price ? form.comparePrice : null,
+        stock: Math.max(0, form.stock),
+        image: form.image,
+        body: form.body || (form.category === "embroidered-leather" ? "کفپوش اختصاصی 50500 با قالب اختصاصی خودرو." : "لوازم جانبی اختصاصی 50500."),
+        brandName: form.category === "accessories" ? form.accessoryName.trim() : (brand?.name ?? null),
+        brandSlug: brand?.slug ?? null,
+        modelSlug: model?.slug ?? null,
+        modelName: model?.name ?? null,
+        cost: form.cost,
+        active: form.active,
+        custom: true,
+        createdAt: base.custom && base.createdAt ? base.createdAt : new Date().toISOString(),
+      };
+      const list = getCustomProducts();
+      const idx = list.findIndex((c) => c.slug === custom.slug);
+      if (idx >= 0) {
+        list[idx] = custom;
+      } else {
+        list.push(custom);
+      }
+      setCustomProducts(list);
+      const adminProduct: AdminState["products"][number] = {
+        slug: custom.slug,
+        title: custom.title,
+        price: custom.price,
+        comparePrice: custom.comparePrice,
+        stock: custom.stock,
+        category: custom.category,
+        brandName: custom.brandName ?? undefined,
+        image: custom.image || base.image || "",
+        active: custom.active,
+        cost: custom.cost ?? 0,
+        createdAt: custom.createdAt,
+        custom: true,
+      };
+      const exists = state.products.some((p) => p.slug === custom.slug);
+      onChange(exists ? state.products.map((p) => (p.slug === custom.slug ? adminProduct : p)) : [...state.products, adminProduct]);
+      onLog?.(`${form.editingSlug ? "ویرایش" : "افزودن"} محصول «${custom.title}»`, "محصولات");
+      onToast(form.editingSlug ? "محصول به‌روزرسانی شد" : "محصول جدید افزوده شد و در فروشگاه فعال است");
+    } else {
+      update(base.slug, {
+        title: form.title.trim(),
+        price: form.price,
+        comparePrice: form.comparePrice > form.price ? form.comparePrice : null,
+        stock: Math.max(0, form.stock),
+        cost: form.cost,
+        image: form.image ?? undefined,
+        active: form.active,
+      });
+      onLog?.(`ویرایش محصول «${form.title.trim()}»`, "محصولات");
+      onToast("محصول به‌روزرسانی شد");
+    }
+    setForm(null);
+  };
+
+  const removeCustom = (p: AdminState["products"][number]) => {
+    if (!p.custom) { onToast("فقط محصولات ساخته‌شده در پنل قابل حذف هستند"); return; }
+    if (!window.confirm(`محصول «${p.title}» حذف شود؟`)) return;
+    setCustomProducts(getCustomProducts().filter((c) => c.slug !== p.slug));
+    setSubItems(p.slug, []);
+    onChange(state.products.filter((x) => x.slug !== p.slug));
+    onLog?.(`حذف محصول «${p.title}»`, "محصولات");
+    onToast("محصول حذف شد");
+  };
+
+  const subItems = subFor ? getSubItems(subFor) : [];
+  const addSub = () => {
+    if (!subFor) return;
+    if (subDraft.title.trim().length < 2) { onToast("نام زیرمجموعه را وارد کنید"); return; }
+    if (subDraft.price <= 0) { onToast("قیمت زیرمجموعه معتبر نیست"); return; }
+    setSubItems(subFor, [...getSubItems(subFor), { id: makeId("sub"), title: subDraft.title.trim(), desc: subDraft.desc.trim(), price: subDraft.price, stock: Math.max(0, subDraft.stock) }]);
+    setSubDraft({ title: "", desc: "", price: 0, stock: 10 });
+    onLog?.(`افزودن زیرمجموعه «${subDraft.title.trim()}» به ${subFor}`, "محصولات");
+    onToast("زیرمجموعه افزوده شد و در صفحه محصول قابل سفارش است");
+  };
+  const removeSub = (id: string) => {
+    if (!subFor) return;
+    setSubItems(subFor, getSubItems(subFor).filter((s) => s.id !== id));
+    onToast("زیرمجموعه حذف شد");
+  };
 
   const stats = {
     total: state.products.length,
@@ -818,21 +1176,21 @@ function Products({ state, onChange, onToast, onLog }: { state: AdminState; onCh
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black">محصولات</h1>
-          <p className="mt-1 text-xs tdim">{fa(filtered.length)} کالا در نمایش</p>
+          <p className="mt-1 text-xs tdim">{fa(filtered.length)} کالا در نمایش · {fa(state.products.filter((p) => p.custom).length)} محصول اختصاصی پنل</p>
         </div>
-        <button
-          onClick={() => {
-            const csv = ["slug,title,price,stock,active", ...state.products.map((p) => [p.slug, `"${p.title}"`, p.price, p.stock, p.active].join(","))].join("\n");
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }));
-            a.download = "50500-products.csv";
-            a.click();
-            onToast("خروجی محصولات دانلود شد");
-          }}
-          className="btn btn-ghost px-4 py-2.5 text-xs"
-        >
-          <Save className="size-4" /> خروجی CSV
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={openAdd} className="btn btn-primary px-4 py-2.5 text-xs"><Plus className="size-4" /> افزودن محصول</button>
+          <button
+            onClick={() => {
+              const csv = ["slug,title,category,price,comparePrice,stock,cost,active", ...state.products.map((p) => [p.slug, `"${p.title}"`, p.category, p.price, p.comparePrice ?? 0, p.stock, p.cost, p.active].join(","))].join("\n");
+              downloadCSV(`50500-products-${new Date().toISOString().slice(0, 10)}.csv`, "\uFEFF" + csv);
+              onToast("خروجی محصولات دانلود شد");
+            }}
+            className="btn btn-ghost px-4 py-2.5 text-xs"
+          >
+            <Save className="size-4" /> خروجی CSV
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
@@ -866,63 +1224,83 @@ function Products({ state, onChange, onToast, onLog }: { state: AdminState; onCh
       </div>
 
       <div className="overflow-x-auto rounded-2xl border bd" style={{ background: "var(--surface-1)" }}>
-        <table className="w-full min-w-[860px] text-xs">
+        <table className="w-full min-w-[920px] text-xs">
           <thead>
             <tr className="border-b bd text-[10px] tfaint" style={{ background: "var(--surface-2)" }}>
-              {["محصول", "دسته", "قیمت (تومان)", "بهای تمام‌شده", "موجودی", "وضعیت", "فعال"].map((h) => (
+              {["محصول", "دسته", "قیمت (تومان)", "بهای تمام‌شده", "موجودی", "وضعیت", "فعال", ""].map((h) => (
                 <th key={h} className="px-3 py-3 text-start font-bold">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y" style={{ borderColor: "var(--line)" }}>
-            {current.map((p) => (
-              <tr key={p.slug} className="hover:bg-white/[0.03]">
-                <td className="px-3 py-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <img src={p.image} alt="" className="size-10 rounded-lg object-cover" style={{ background: "var(--muted-surface)" }} />
-                    <div className="min-w-0">
-                      <Link to={`/products/${p.slug}`} className="block max-w-[240px] truncate text-[11px] font-bold hover:text-brand-300">{p.title}</Link>
-                      <span className="text-[9px] tfaint">{p.brandName ?? "لوازم جانبی"}</span>
+            {current.map((p) => {
+              const subs = getSubItems(p.slug);
+              return (
+                <tr key={p.slug} className="hover:bg-white/[0.03]">
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <button onClick={() => setImageFor(p.slug)} title="تغییر تصویر محصول" aria-label={`تغییر تصویر ${p.title}`}>
+                        <img src={p.image} alt="" className="size-10 rounded-lg object-cover transition hover:ring-2 hover:ring-brand-400" style={{ background: "var(--muted-surface)" }} />
+                      </button>
+                      <div className="min-w-0">
+                        <Link to={`/products/${p.slug}`} className="block max-w-[240px] truncate text-[11px] font-bold hover:text-brand-300">{p.title}</Link>
+                        <span className="text-[9px] tfaint">
+                          {p.brandName ?? "کفپوش اختصاصی"}
+                          {p.custom && <span className="ms-1 rounded-full bg-brand-500/15 px-1.5 py-0.5 text-[8px] font-black text-brand-300">پنل</span>}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </td>
-                <td className="px-3 py-2.5 text-[10px] tdim">{p.category === "accessories" ? "لوازم جانبی" : "کفپوش"}</td>
-                <td className="px-3 py-2.5">
-                  <input
-                    className="input !w-24 !py-1 !text-[11px]"
-                    dir="ltr"
-                    defaultValue={p.price}
-                    onBlur={(e) => { const v = Number(e.target.value); if (v > 0) { update(p.slug, { price: v }); onLog?.(`تغییر قیمت «${p.title}» به ${money(v)} تومان`, "محصولات"); } }}
-                  />
-                </td>
-                <td className="px-3 py-2.5 text-[10px] tdim">{money(p.cost)}</td>
-                <td className="px-3 py-2.5">
-                  <div className="flex items-center gap-1.5">
+                  </td>
+                  <td className="px-3 py-2.5 text-[10px] tdim">{p.category === "accessories" ? "لوازم جانبی" : "کفپوش"}</td>
+                  <td className="px-3 py-2.5">
                     <input
-                      className="input !w-16 !py-1 !text-[11px]"
+                      className="input !w-24 !py-1 !text-[11px]"
                       dir="ltr"
-                      defaultValue={p.stock}
-                      onBlur={(e) => { update(p.slug, { stock: Math.max(0, Number(e.target.value)) }); onLog?.(`ویرایش موجودی «${p.title}»`, "محصولات"); }}
+                      defaultValue={p.price}
+                      onBlur={(e) => { const v = Number(e.target.value); if (v > 0) { update(p.slug, { price: v }); onLog?.(`تغییر قیمت «${p.title}» به ${money(v)} تومان`, "محصولات"); } }}
                     />
-                    {p.stock <= 5 && <span className="rounded-full bg-rose-400/15 px-1.5 py-0.5 text-[9px] font-bold text-rose-300">کم</span>}
-                  </div>
-                </td>
-                <td className="px-3 py-2.5 text-[10px]">
-                  <span className={cn("rounded-full border px-2 py-0.5 font-bold", p.stock > 0 ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" : "border-rose-400/30 bg-rose-400/10 text-rose-300")}>
-                    {p.stock > 0 ? "موجود" : "ناموجود"}
-                  </span>
-                </td>
-                <td className="px-3 py-2.5">
-                  <button
-                    onClick={() => { update(p.slug, { active: !p.active }); onToast(`${p.active ? "غیرفعال" : "فعال"} شد`); }}
-                    className={cn("relative h-5 w-9 rounded-full transition", p.active ? "bg-brand-500" : "bg-white/15")}
-                    aria-label="تغییر وضعیت انتشار"
-                  >
-                    <span className={cn("absolute top-0.5 size-4 rounded-full bg-white transition-all", p.active ? "start-0.5" : "start-[18px]")} />
-                  </button>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="px-3 py-2.5 text-[10px] tdim">{money(p.cost)}</td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        className="input !w-16 !py-1 !text-[11px]"
+                        dir="ltr"
+                        defaultValue={p.stock}
+                        onBlur={(e) => { update(p.slug, { stock: Math.max(0, Number(e.target.value)) }); onLog?.(`ویرایش موجودی «${p.title}»`, "محصولات"); }}
+                      />
+                      {p.stock <= 5 && <span className="rounded-full bg-rose-400/15 px-1.5 py-0.5 text-[9px] font-bold text-rose-300">کم</span>}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2.5 text-[10px]">
+                    <span className={cn("rounded-full border px-2 py-0.5 font-bold", p.stock > 0 ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" : "border-rose-400/30 bg-rose-400/10 text-rose-300")}>
+                      {p.stock > 0 ? "موجود" : "ناموجود"}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <button
+                      onClick={() => { update(p.slug, { active: !p.active }); onToast(`${p.active ? "غیرفعال" : "فعال"} شد`); }}
+                      className={cn("relative h-5 w-9 rounded-full transition", p.active ? "bg-brand-500" : "bg-white/15")}
+                      aria-label="تغییر وضعیت انتشار"
+                    >
+                      <span className={cn("absolute top-0.5 size-4 rounded-full bg-white transition-all", p.active ? "start-0.5" : "start-[18px]")} />
+                    </button>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => openEdit(p)} title="ویرایش محصول" className="grid size-7 place-items-center rounded-lg bd tdim transition soft-h" aria-label="ویرایش"><Pencil className="size-3.5" /></button>
+                      <button onClick={() => setSubFor(p.slug)} title="زیرمجموعه‌ها" className="relative grid size-7 place-items-center rounded-lg bd tdim transition soft-h" aria-label="زیرمجموعه‌ها">
+                        <Layers className="size-3.5" />
+                        {subs.length > 0 && <span className="absolute -top-1.5 -end-1.5 grid size-4 place-items-center rounded-full bg-brand-500 text-[8px] font-black text-white">{fa(subs.length)}</span>}
+                      </button>
+                      {p.custom && (
+                        <button onClick={() => removeCustom(p)} title="حذف محصول" className="grid size-7 place-items-center rounded-lg bd tdim transition hover:border-rose-400/50 hover:text-rose-400" aria-label="حذف"><Trash2 className="size-3.5" /></button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -933,6 +1311,162 @@ function Products({ state, onChange, onToast, onLog }: { state: AdminState; onCh
             <button key={i} onClick={() => setPage(i + 1)} className={cn("grid size-8 place-items-center rounded-lg text-xs font-bold", page === i + 1 ? "bg-brand-500 text-white" : "border bd tdim")}>{fa(i + 1)}</button>
           ))}
         </div>
+      )}
+
+      {/* add / edit product modal */}
+      {form && (
+        <div className="fixed inset-0 z-[60] grid place-items-center p-4" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setForm(null)} />
+          <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border bd bg-ink-900 p-5 shadow-2xl animate-fade-up">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-black">{form.editingSlug ? "ویرایش محصول" : "افزودن محصول جدید"}</h2>
+              <button onClick={() => setForm(null)} className="grid size-9 place-items-center rounded-xl soft" aria-label="بستن"><X className="size-4" /></button>
+            </div>
+            <div className="mt-4 grid gap-3">
+              <label className="grid gap-1.5">
+                <span className="text-xs font-bold tdim">نام محصول *</span>
+                <input className="input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="مثلاً کفپوش چرمی پنج بعدی پژو ۲۰۶" />
+              </label>
+              <label className="grid gap-1.5">
+                <span className="text-xs font-bold tdim">دسته</span>
+                <select className="input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as "embroidered-leather" | "accessories" })}>
+                  <option value="embroidered-leather">کفپوش چرمی گلدوزی</option>
+                  <option value="accessories">لوازم جانبی</option>
+                </select>
+              </label>
+              {form.category === "embroidered-leather" ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-bold tdim">برند (اختیاری)</span>
+                    <select className="input" value={form.brandSlug} onChange={(e) => setForm({ ...form, brandSlug: e.target.value, modelSlug: "" })}>
+                      <option value="">برای همه خودروها</option>
+                      {BRANDS.map((b) => <option key={b.slug} value={b.slug}>{b.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-bold tdim">مدل (اختیاری)</span>
+                    <select className="input" value={form.modelSlug} disabled={!form.brandSlug} onChange={(e) => setForm({ ...form, modelSlug: e.target.value })}>
+                      <option value="">همه مدل‌ها</option>
+                      {(BRANDS.find((b) => b.slug === form.brandSlug)?.models ?? []).map((m) => <option key={m.slug} value={m.slug}>{m.name}</option>)}
+                    </select>
+                  </label>
+                </div>
+              ) : (
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-bold tdim">نام دسته (برند/لوازم) *</span>
+                  <input className="input" value={form.accessoryName} onChange={(e) => setForm({ ...form, accessoryName: e.target.value })} placeholder="مثلاً روکش فرمان چرمی" />
+                </label>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-bold tdim">قیمت (تومان) *</span>
+                  <input className="input" dir="ltr" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} />
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-bold tdim">قیمت قبل از تخفیف (اختیاری)</span>
+                  <input className="input" dir="ltr" type="number" value={form.comparePrice || ""} onChange={(e) => setForm({ ...form, comparePrice: Number(e.target.value) })} />
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-bold tdim">موجودی</span>
+                  <input className="input" dir="ltr" type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })} />
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-bold tdim">بهای تمام‌شده (تومان)</span>
+                  <input className="input" dir="ltr" type="number" value={form.cost || ""} onChange={(e) => setForm({ ...form, cost: Number(e.target.value) })} />
+                </label>
+              </div>
+              <label className="grid gap-1.5">
+                <span className="text-xs font-bold tdim">توضیحات (اختیاری)</span>
+                <textarea className="input min-h-20 resize-y" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} placeholder="توضیحی که در صفحه محصول نمایش داده می‌شود" />
+              </label>
+              <div className="flex items-center gap-3 rounded-xl border bd p-3" style={{ background: "var(--field)" }}>
+                <img src={form.image ?? ""} alt="" className="size-14 shrink-0 rounded-lg object-cover" style={{ background: "var(--muted-surface)" }} />
+                <div className="flex flex-1 flex-wrap gap-2">
+                  <label className="btn btn-ghost cursor-pointer px-3 py-2 text-[11px]">
+                    <ImageIcon className="size-3.5" /> بارگذاری تصویر
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
+                  </label>
+                  <button onClick={() => setImageFor(form.editingSlug ?? "__form__")} className="btn btn-ghost px-3 py-2 text-[11px]">
+                    از کتابخانه تصاویر
+                  </button>
+                  {form.image && (
+                    <button onClick={() => setForm({ ...form, image: null })} className="text-[11px] font-bold text-rose-400 hover:underline">حذف تصویر</button>
+                  )}
+                </div>
+              </div>
+              <label className="flex cursor-pointer items-center gap-2 text-xs font-bold">
+                <input type="checkbox" className="size-4 accent-[#ff6b1a]" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
+                محصول در فروشگاه فعال است
+              </label>
+              <div className="flex gap-2 pt-1">
+                <button onClick={saveForm} className="btn btn-primary flex-1 py-2.5 text-xs"><Save className="size-4" /> {form.editingSlug ? "ذخیره تغییرات" : "افزودن محصول"}</button>
+                <button onClick={() => setForm(null)} className="btn btn-ghost px-5 py-2.5 text-xs">انصراف</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* sub-items (زیرمجموعه) modal */}
+      {subFor && (
+        <div className="fixed inset-0 z-[60] grid place-items-center p-4" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSubFor(null)} />
+          <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border bd bg-ink-900 p-5 shadow-2xl animate-fade-up">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-black">زیر مجموعه‌ها</h2>
+                <p className="mt-1 text-[11px] tdim">«{state.products.find((p) => p.slug === subFor)?.title}» — لوازم جانبی تکمیلی که مشتری می‌تواند همراه کفپوش سفارش دهد</p>
+              </div>
+              <button onClick={() => setSubFor(null)} className="grid size-9 place-items-center rounded-xl soft" aria-label="بستن"><X className="size-4" /></button>
+            </div>
+            <div className="mt-4 grid gap-2">
+              {subItems.map((s) => (
+                <div key={s.id} className="flex items-center gap-3 rounded-xl border bd p-3" style={{ background: "var(--field)" }}>
+                  <div className="min-w-0 flex-1">
+                    <b className="block truncate text-xs">{s.title}</b>
+                    <span className="text-[10px] tfaint">{money(s.price)} تومان · موجودی {fa(s.stock)}</span>
+                  </div>
+                  <button onClick={() => removeSub(s.id)} className="grid size-7 place-items-center rounded-lg bd tdim transition hover:text-rose-400" aria-label="حذف زیرمجموعه"><Trash2 className="size-3.5" /></button>
+                </div>
+              ))}
+              {subItems.length === 0 && <p className="rounded-xl border border-dashed bd p-5 text-center text-xs tdim">هنوز زیرمجموعه‌ای تعریف نشده است.</p>}
+            </div>
+            <div className="mt-4 grid gap-2.5 rounded-2xl border bd p-3" style={{ background: "var(--surface-2)" }}>
+              <p className="text-xs font-black">افزودن زیرمجموعه</p>
+              <input className="input" placeholder="نام (مثلاً روکش فرمان چرمی)" value={subDraft.title} onChange={(e) => setSubDraft({ ...subDraft, title: e.target.value })} />
+              <input className="input" placeholder="توضیح کوتاه (اختیاری)" value={subDraft.desc} onChange={(e) => setSubDraft({ ...subDraft, desc: e.target.value })} />
+              <div className="grid grid-cols-2 gap-2.5">
+                <input className="input" dir="ltr" type="number" placeholder="قیمت (تومان)" value={subDraft.price || ""} onChange={(e) => setSubDraft({ ...subDraft, price: Number(e.target.value) })} />
+                <input className="input" dir="ltr" type="number" placeholder="موجودی" value={subDraft.stock} onChange={(e) => setSubDraft({ ...subDraft, stock: Number(e.target.value) })} />
+              </div>
+              <button onClick={addSub} className="btn btn-primary py-2.5 text-xs"><Plus className="size-4" /> افزودن زیرمجموعه</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {imageFor && imageFor !== "__form__" && (
+        <MediaPicker
+          title={`تصویر محصول: ${state.products.find((p) => p.slug === imageFor)?.title ?? imageFor}`}
+          onClose={() => setImageFor(null)}
+          onToast={onToast}
+          onSelect={({ src, alt }) => {
+            update(imageFor, { image: src });
+            onLog?.(`تغییر تصویر محصول ${imageFor}`, "محصولات");
+            onToast(`تصویر محصول با «${alt}» به‌روزرسانی شد`);
+          }}
+        />
+      )}
+      {imageFor === "__form__" && form && (
+        <MediaPicker
+          title="تصویر محصول جدید"
+          onClose={() => setImageFor(null)}
+          onToast={onToast}
+          onSelect={({ src, alt }) => {
+            setForm({ ...form, image: src });
+            onToast(`تصویر «${alt}» انتخاب شد`);
+          }}
+        />
       )}
     </div>
   );
@@ -1138,11 +1672,13 @@ function SettingsPanel({
   onChange,
   onToast,
   onReset,
+  onChangePassword,
 }: {
   state: AdminState;
   onChange: (s: AdminState["settings"]) => void;
   onToast: (m: string) => void;
   onReset: () => void;
+  onChangePassword: (pw: string) => void;
 }) {
   const [form, setForm] = useState(state.settings);
   const field = (k: keyof AdminState["settings"]) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -1207,6 +1743,31 @@ function SettingsPanel({
             <button onClick={onReset} className="btn btn-ghost mt-3 w-full py-2.5 text-[11px]">
               <RotateCcw className="size-3.5" /> بازنشانی داده‌های نمایشی
             </button>
+          </div>
+
+          <div className="rounded-2xl border border-brand-500/25 bg-brand-500/[0.07] p-5" style={{ background: "var(--surface-1)" }}>
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-black"><KeyRound className="size-4 text-brand-400" /> رمز پنل مدیریت</h2>
+            <p className="rounded-xl border border-dashed bd px-3 py-2.5 text-[11px] leading-5 tdim">
+              رمز پیش‌فرض توضیح راهنمای ورود است. برای نسخه نمایشی قابل تغییر است؛ رمز جدید در همین مرورگر ذخیره می‌شود.
+            </p>
+            <div className="mt-3 grid gap-2">
+              <input id="admin-pw" type="password" autoComplete="new-password" className="input" placeholder="رمز جدید (حداقل ۸ کاراکتر)" />
+              <input id="admin-pw2" type="password" autoComplete="new-password" className="input" placeholder="تکرار رمز جدید" />
+              <button
+                onClick={() => {
+                  const a = (document.getElementById("admin-pw") as HTMLInputElement)?.value ?? "";
+                  const b = (document.getElementById("admin-pw2") as HTMLInputElement)?.value ?? "";
+                  if (a !== b || a.length < 8) {
+                    onToast(a !== b ? "رمزها مطابقت ندارند" : "رمز باید حداقل ۸ کاراکتر باشد");
+                    return;
+                  }
+                  onChangePassword(a);
+                }}
+                className="btn btn-primary w-full py-2.5 text-[11px]"
+              >
+                <KeyRound className="size-3.5" /> تغییر رمز وِ ورودِ دوباره
+              </button>
+            </div>
           </div>
         </div>
       </div>

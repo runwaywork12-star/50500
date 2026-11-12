@@ -168,7 +168,7 @@ export function saveOrder(order: Order) {
 function normalizeDemo(o: (typeof DEMO_ORDERS)[number]): Order {
   return {
     code: o.code,
-    items: [{ slug: "demo", qty: 1, title: o.items[0] ?? "محصول 50500", price: o.total, image: img("images/mat-black-red.webp") }],
+    items: [{ slug: "demo", qty: 1, title: o.items[0] ?? "محصول 50500", price: o.total, image: img("images/products/mat-black.webp") }],
     customer: { name: o.name, phone: o.phone, province: "", city: o.city, address: "—", postalCode: "", notes: "" },
     shippingMethod: "post",
     payment: o.payment === "paid" ? "online" : "cod",

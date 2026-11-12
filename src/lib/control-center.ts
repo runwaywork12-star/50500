@@ -19,7 +19,7 @@ export type PageControl = {
   updatedAt: string;
 };
 
-export type GatewayId = "zarinpal" | "sadad" | "sep" | "zibal" | "card";
+export type GatewayId = "zarinpal" | "mellat" | "sadad" | "sep" | "zibal" | "card";
 export type GatewayConfig = {
   id: GatewayId;
   name: string;
@@ -48,6 +48,12 @@ export const GATEWAY_FIELDS: Record<GatewayId, GatewayField[]> = {
   ],
   zibal: [
     { key: "merchantId", label: "مرچنت زیبال", required: true, dir: "ltr" },
+  ],
+  mellat: [
+    { key: "merchantId", label: "شناسه پذیرنده (MerchantID)", required: true, dir: "ltr" },
+    { key: "terminalId", label: "شماره ترمینال", dir: "ltr" },
+    { key: "userName", label: "نام کاربری وب‌سرویس", required: true, dir: "ltr" },
+    { key: "password", label: "رمز وب‌سرویس", required: true, secret: true, dir: "ltr" },
   ],
   card: [
     { key: "owner", label: "نام صاحب حساب", required: true },
@@ -106,8 +112,8 @@ const SECRET_KEY = "50500_control_secrets_v1";
 const now = () => new Date().toISOString();
 
 const DEFAULT_PAGES: PageControl[] = [
-  { id: "home", title: "صفحه اصلی", route: "/", enabled: true, seoTitle: "فروشگاه 50500 | کفپوش چرمی گلدوزی اختصاصی خودرو", seoDescription: "کفپوش چرمی گلدوزی اختصاصی خودرو با انتخاب رنگ چرم و نخ، گارانتی و ارسال به سراسر ایران.", keywords: "کفپوش خودرو, کفپوش چرمی, 50500", robots: "index,follow", ogImage: "", updatedAt: now() },
-  { id: "products", title: "فروشگاه و محصولات", route: "/products", enabled: true, seoTitle: "محصولات | فروشگاه 50500", seoDescription: "مشاهده و فیلتر کفپوش اختصاصی خودرو و لوازم جانبی.", keywords: "خرید کفپوش, لوازم جانبی خودرو", robots: "index,follow", ogImage: "", updatedAt: now() },
+  { id: "home", title: "صفحه اصلی", route: "/", enabled: true, seoTitle: "50500.shop | کفپوش چرمی گلدوزی اختصاصی خودرو", seoDescription: "کفپوش چرمی گلدوزی اختصاصی خودرو با انتخاب رنگ چرم و نخ، گارانتی و ارسال به سراسر ایران.", keywords: "کفپوش خودرو, کفپوش چرمی, 50500", robots: "index,follow", ogImage: "", updatedAt: now() },
+  { id: "products", title: "فروشگاه و محصولات", route: "/products", enabled: true, seoTitle: "محصولات | 50500.shop", seoDescription: "مشاهده و فیلتر کفپوش اختصاصی خودرو و لوازم جانبی.", keywords: "خرید کفپوش, لوازم جانبی خودرو", robots: "index,follow", ogImage: "", updatedAt: now() },
   { id: "product", title: "قالب صفحه محصول", route: "/products/*", enabled: true, seoTitle: "جزئیات محصول | 50500", seoDescription: "مشخصات، تصاویر و انتخاب رنگ کفپوش اختصاصی خودرو.", keywords: "جزئیات کفپوش", robots: "index,follow", ogImage: "", updatedAt: now() },
   { id: "blog", title: "مجله", route: "/blog", enabled: true, seoTitle: "مجله خودرو | 50500", seoDescription: "راهنمای خرید و نگهداری کفپوش و لوازم چرمی خودرو.", keywords: "مجله خودرو, نگهداری کفپوش", robots: "index,follow", ogImage: "", updatedAt: now() },
   { id: "article", title: "قالب مقاله", route: "/blog/*", enabled: true, seoTitle: "مقاله | مجله 50500", seoDescription: "مقاله‌های تخصصی مجله 50500.", keywords: "مقاله خودرو", robots: "index,follow", ogImage: "", updatedAt: now() },
@@ -116,8 +122,8 @@ const DEFAULT_PAGES: PageControl[] = [
   { id: "track", title: "پیگیری سفارش", route: "/track", enabled: true, seoTitle: "پیگیری سفارش | 50500", seoDescription: "پیگیری وضعیت سفارش با کد سفارش یا شماره موبایل.", keywords: "پیگیری سفارش", robots: "noindex,nofollow", ogImage: "", updatedAt: now() },
   { id: "cart", title: "سبد خرید", route: "/cart", enabled: true, seoTitle: "سبد خرید | 50500", seoDescription: "بازبینی کالاهای سبد خرید.", keywords: "", robots: "noindex,nofollow", ogImage: "", updatedAt: now() },
   { id: "checkout", title: "تسویه حساب", route: "/checkout", enabled: true, seoTitle: "تسویه حساب | 50500", seoDescription: "ثبت اطلاعات ارسال و تسویه سفارش.", keywords: "", robots: "noindex,nofollow", ogImage: "", updatedAt: now() },
-  { id: "login", title: "ورود", route: "/login", enabled: true, seoTitle: "ورود به حساب کاربری | 50500", seoDescription: "ورود به حساب کاربری فروشگاه 50500.", keywords: "", robots: "noindex,nofollow", ogImage: "", updatedAt: now() },
-  { id: "register", title: "ثبت‌نام", route: "/register", enabled: true, seoTitle: "ثبت‌نام | 50500", seoDescription: "ساخت حساب کاربری در فروشگاه 50500.", keywords: "", robots: "noindex,nofollow", ogImage: "", updatedAt: now() },
+  { id: "login", title: "ورود", route: "/login", enabled: true, seoTitle: "ورود به حساب کاربری | 50500", seoDescription: "ورود به حساب کاربری 50500.shop.", keywords: "", robots: "noindex,nofollow", ogImage: "", updatedAt: now() },
+  { id: "register", title: "ثبت‌نام", route: "/register", enabled: true, seoTitle: "ثبت‌نام | 50500", seoDescription: "ساخت حساب کاربری در 50500.shop.", keywords: "", robots: "noindex,nofollow", ogImage: "", updatedAt: now() },
   { id: "forgot", title: "بازیابی رمز", route: "/forgot", enabled: true, seoTitle: "بازیابی رمز عبور | 50500", seoDescription: "بازیابی دسترسی به حساب کاربری.", keywords: "", robots: "noindex,nofollow", ogImage: "", updatedAt: now() },
   { id: "account", title: "حساب کاربری", route: "/account", enabled: true, seoTitle: "حساب کاربری | 50500", seoDescription: "سفارش‌ها و اطلاعات حساب کاربری.", keywords: "", robots: "noindex,nofollow", ogImage: "", updatedAt: now() },
   { id: "order", title: "جزئیات سفارش", route: "/order/*", enabled: true, seoTitle: "جزئیات سفارش | 50500", seoDescription: "جزئیات و وضعیت سفارش.", keywords: "", robots: "noindex,nofollow", ogImage: "", updatedAt: now() },
@@ -125,11 +131,12 @@ const DEFAULT_PAGES: PageControl[] = [
 ];
 
 const DEFAULT_GATEWAYS: GatewayConfig[] = [
-  { id: "zarinpal", name: "زرین‌پال", description: "پرداخت اینترنتی با مرچنت اختصاصی فروشگاه", enabled: false, mode: "sandbox", position: 1, currency: "IRT", callbackUrl: "https://50500.shop/pay/callback/zarinpal", fields: {} },
-  { id: "sadad", name: "سداد بانک ملی", description: "درگاه پرداخت اینترنتی بانک ملی ایران", enabled: false, mode: "sandbox", position: 2, currency: "IRR", callbackUrl: "https://50500.shop/pay/callback/sadad", fields: {} },
-  { id: "sep", name: "سپ (بانک سامان)", description: "درگاه پرداخت الکترونیک سامان", enabled: false, mode: "sandbox", position: 3, currency: "IRR", callbackUrl: "https://50500.shop/pay/callback/sep", fields: {} },
-  { id: "zibal", name: "زیبال", description: "درگاه پرداخت زیبال با تسویه بانکی", enabled: false, mode: "sandbox", position: 4, currency: "IRT", callbackUrl: "https://50500.shop/pay/callback/zibal", fields: {} },
-  { id: "card", name: "کارت‌به‌کارت", description: "ثبت اطلاعات حساب و بررسی دستی رسید واریز", enabled: true, mode: "production", position: 5, currency: "IRT", callbackUrl: "", fields: {} },
+  { id: "zarinpal", name: "زرین‌پال", description: "پرداخت اینترنتی با مرچنت اختصاصی فروشگاه", enabled: true, mode: "sandbox", position: 1, currency: "IRT", callbackUrl: "https://50500.shop/pay/callback/zarinpal", fields: {} },
+  { id: "sadad", name: "سداد بانک ملی", description: "درگاه پرداخت اینترنتی بانک ملی ایران", enabled: false, mode: "sandbox", position: 3, currency: "IRR", callbackUrl: "https://50500.shop/pay/callback/sadad", fields: {} },
+  { id: "sep", name: "سپ (بانک سامان)", description: "درگاه پرداخت الکترونیک سامان", enabled: false, mode: "sandbox", position: 4, currency: "IRR", callbackUrl: "https://50500.shop/pay/callback/sep", fields: {} },
+  { id: "zibal", name: "زیبال", description: "درگاه پرداخت زیبال با تسویه بانکی", enabled: false, mode: "sandbox", position: 5, currency: "IRT", callbackUrl: "https://50500.shop/pay/callback/zibal", fields: {} },
+  { id: "mellat", name: "به پرداخت ملت", description: "درگاه بانک ملت (Pay Iran) — PaymentStartRequest با امضای MD5 و بازگشت از طریق PgwBand", enabled: true, mode: "sandbox", position: 2, currency: "IRT", callbackUrl: "https://50500.shop/pay/callback/mellat", fields: {} },
+  { id: "card", name: "کارت‌به‌کارت", description: "ثبت اطلاعات حساب و بررسی دستی رسید واریز", enabled: true, mode: "production", position: 6, currency: "IRT", callbackUrl: "", fields: {} },
 ];
 
 const DEFAULT_PROVIDERS: AIProvider[] = [
@@ -145,14 +152,26 @@ const DEFAULT_AGENTS: AgentConfig[] = [
 
 export const DEFAULT_CONTROL_STATE: ControlState = { pages: DEFAULT_PAGES, gateways: DEFAULT_GATEWAYS, providers: DEFAULT_PROVIDERS, agents: DEFAULT_AGENTS, runs: [] };
 
+function rebrandSeo(value: string): string {
+  return value.replace(/فروشگاه 50500(?!\.shop)/g, "50500.shop").replace(/\| 50500(?!\.shop)/g, "| 50500.shop");
+}
+
 function mergeState(raw: Partial<ControlState> | null): ControlState {
   if (!raw) return DEFAULT_CONTROL_STATE;
-  return {
+  const merged: ControlState = {
     pages: [...DEFAULT_PAGES.map((p) => ({ ...p, ...(raw.pages?.find((x) => x.id === p.id) ?? {}) })), ...(raw.pages ?? []).filter((p) => !DEFAULT_PAGES.some((base) => base.id === p.id))],
     gateways: DEFAULT_GATEWAYS.map((g) => ({ ...g, ...(raw.gateways?.find((x) => x.id === g.id) ?? {}), fields: { ...(raw.gateways?.find((x) => x.id === g.id)?.fields ?? {}) } })),
     providers: DEFAULT_PROVIDERS.map((p) => ({ ...p, ...(raw.providers?.find((x) => x.id === p.id) ?? {}) })),
     agents: [...DEFAULT_AGENTS.map((a) => ({ ...a, ...(raw.agents?.find((x) => x.id === a.id) ?? {}) })), ...(raw.agents ?? []).filter((a) => !DEFAULT_AGENTS.some((base) => base.id === a.id))],
     runs: Array.isArray(raw.runs) ? raw.runs.slice(0, 50) : [],
+  };
+  return {
+    ...merged,
+    pages: merged.pages.map((page) => ({
+      ...page,
+      seoTitle: rebrandSeo(page.seoTitle),
+      seoDescription: rebrandSeo(page.seoDescription),
+    })),
   };
 }
 
@@ -341,3 +360,36 @@ export function downloadJSON(filename: string, data: unknown) {
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+
+/** Public documentation references used by the admin gateway guide. */
+export const GATEWAY_DOCS: Partial<Record<GatewayId, { title: string; summary: string; steps: string[]; links: { label: string; href: string }[] }>> = {
+  zarinpal: {
+    title: "زرین‌پال",
+    summary: "آغاز پرداخت از طریق REST API نسخه ۴ (zap.ir/apiv2) و انتقال کاربر به صفحه بانک.",
+    steps: [
+      "ارسال POST به https://zap.ir/apiv2 با بدنه { amount (تومان), description, callbackUrl, merchantId }",
+      "دریافت «authority» از پاسخ موفق",
+      "انتقال کاربر به https://ibp.zarinpal.com/pg/StartPay/{authority}",
+      "اعتبارسنجی نتیجه در callback و استعلام تراکنش از درگاه",
+    ],
+    links: [
+      { label: "مستندات درگاه زرین‌پال", href: "https://www.zarinpal.com/docs/paymentGateway/connectToGateway.html" },
+      { label: "پنل پذیرندگان زرین‌پال", href: "https://www.zarinpal.com/" },
+    ],
+  },
+  mellat: {
+    title: "به پرداخت ملت (Pay Iran)",
+    summary: "درگاه بانک ملت با وب‌سرویس PaymentStartRequest و انتقال کاربر به مسیر Track/{PaymentId}.",
+    steps: [
+      "ارسال PaymentStartRequest به https://bpm.shaparak.ir/PgwBand/StartPay شامل Amount، MerchantID، TerminalID، UserName، Password، MD5(UserName:Password)، VerNumber و ReferenceID",
+      "دریافت PaymentId از پاسخ در صورتی که Result = 100 باشد",
+      "انتقال کاربر به https://bpm.shaparak.ir/PgwBand/StartPay/Track/{PaymentId}",
+      "دریافت PaymentResultNotification در آدرس بازگشت و ثبت RefNum / SaleReferenceId",
+    ],
+    links: [
+      { label: "مستندات به پرداخت ملت", href: "https://www.behpardakht.com/" },
+      { label: "پنل پذیرندگان به پرداخت ملت", href: "https://bpm.shaparak.ir/" },
+    ],
+  },
+};

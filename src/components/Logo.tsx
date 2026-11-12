@@ -16,13 +16,13 @@ export function LogoMark({ className = "size-10" }: { className?: string }) {
   );
 }
 
-/** Primary 50500.co wordmark, inspired by the supplied car-outline logo. */
+/** Primary 50500.shop wordmark, inspired by the supplied car-outline logo. */
 export function Logo({ className = "", href = "/", withText = true }: { className?: string; href?: string; withText?: boolean }) {
   return (
-    <ThemeLink href={href} className={`group inline-flex shrink-0 items-center gap-1.5 ${className}`} aria-label="فروشگاه 50500.co">
+    <ThemeLink href={href} className={`group inline-flex shrink-0 items-center gap-1.5 ${className}`} aria-label="فروشگاه 50500.shop">
       <span className="inline-flex items-center gap-1" dir="ltr">
         <span dir="ltr" className="font-english text-[26px] font-black tracking-tight text-[var(--txt)] sm:text-[28px]">50500</span>
-        <span className="font-english text-[16px] font-black tracking-tight text-[var(--accent-2)]">.co</span>
+        <span className="font-english text-[15px] font-black tracking-tight text-[var(--accent-2)]">.shop</span>
       </span>
       {withText && <span className="hidden text-[10px] font-semibold leading-none text-[var(--txt)] opacity-70 sm:inline">فروشگاه کفپوش خودرو</span>}
     </ThemeLink>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
  ArrowLeft,
@@ -15,6 +15,8 @@ import { PageHero } from "@/components/ui";
 import { getOrder, markOrderPaid, type Order } from "@/lib/cart";
 import { ORDER_STATUSES, SHIPPING_METHODS, PAYMENT_METHODS, SITE } from "@/data/content";
 import { cn, fa, faDate, maskPhone, money } from "@/lib/format";
+import { getControlState, type GatewayConfig } from "@/lib/control-center";
+import { LIVE_GATEWAY_IDS, startGatewayPay } from "@/lib/gateways";
 
 const TONE: Record<string, string> = {
  amber: "bg-amber-400/15 text-amber-300 border-amber-400/30",
@@ -178,6 +180,13 @@ export function PayPage() {
  const navigate = useNavigate();
  const [card, setCard] = useState("");
  const [busy, setBusy] = useState(false);
+ const [gatewayBusy, setGatewayBusy] = useState<string | null>(null);
+ const [gatewayError, setGatewayError] = useState("");
+ const paidCode = order?.paymentStatus === "paid" ? order.code : null;
+
+ useEffect(() => {
+  if (paidCode) navigate(`/order/${paidCode}`, { replace: true });
+ }, [paidCode, navigate]);
 
  if (!order) {
   return (
@@ -190,10 +199,22 @@ export function PayPage() {
   );
  }
 
- if (order.paymentStatus === "paid") {
-  navigate(`/order/${order.code}`, { replace: true });
-  return null;
- }
+ if (paidCode) return null;
+
+ // Live gateways enabled from the admin panel (Zarinpal / Bank Mellat Pay Iran).
+ const gateways: GatewayConfig[] = getControlState().gateways.filter((g) => g.enabled && (LIVE_GATEWAY_IDS as string[]).includes(g.id));
+
+ const startGateway = async (gw: GatewayConfig) => {
+  setGatewayError("");
+  setGatewayBusy(gw.id);
+  try {
+   const res = await startGatewayPay(gw, order.total);
+   window.location.assign(res.url);
+  } catch (err) {
+   setGatewayError(err instanceof Error ? err.message : "اتصال به درگاه ناموفق بود.");
+   setGatewayBusy(null);
+  }
+ };
 
  const pay = () => {
   if (card.replace(/\D/g, "").length < 12) return;
@@ -206,32 +227,61 @@ export function PayPage() {
 
  return (
   <>
-   <PageHero eyebrow="درگاه پرداخت" title={<>پرداخت سفارش <span dir="ltr" className="text-gradient">#{order.code}</span></>} desc="شبیه‌ساز — در این نسخه نمایشی هیچ مبلغی از حساب شما کسر نمی‌شود" />
+   <PageHero eyebrow="درگاه پرداخت" title={<>پرداخت سفارش <span dir="ltr" className="text-gradient">#{order.code}</span></>} desc="پرداخت در صفحه رسمی بانک انجام می‌شود؛ اطلاعات کارت شما هرگز وارد این سایت نمی‌شود." />
    <div className="container-x py-10">
-    <div className="mx-auto max-w-lg rounded-[2rem] border bd p-8" style={{ background: "var(--surface-1)" }}>
+    <div className="mx-auto grid max-w-lg gap-5 rounded-[2rem] border bd p-8" style={{ background: "var(--surface-1)" }}>
      <div className="flex items-center justify-between">
       <span className="flex items-center gap-2 text-sm font-black"><CreditCard className="size-5 text-brand-400" /> درگاه پرداخت 50500</span>
-      <span className="rounded-full bg-amber-400/15 px-3 py-1 text-[10px] font-black text-amber-300">Sandbox</span>
+      <span className="rounded-full bg-amber-400/15 px-3 py-1 text-[10px] font-black text-amber-300">{gateways.length === 0 ? "Sandbox" : "درگاه فعال"}</span>
      </div>
-     <p className="mt-6 text-xs tfaint">مبلغ قابل پرداخت</p>
-     <p className="mt-1 text-3xl font-black">{money(order.total)}</p>
-     <label className="mt-6 grid gap-1.5">
-      <span className="text-xs font-bold tdim">شماره کارت (تست)</span>
-      <input
-       className="input font-mono"
-       dir="ltr"
-       inputMode="numeric"
-       placeholder="6037-9911-2233-4455"
-       value={card}
-       onChange={(e) => setCard(e.target.value.replace(/[^0-9-]/g, "").slice(0, 19))}
-      />
-     </label>
-     <button onClick={pay} disabled={busy || card.replace(/\D/g, "").length < 12} className="btn btn-primary shine mt-6 w-full py-4 text-sm">
-      {busy ? "در حال اتصال به درگاه..." : `پرداخت ${money(order.total)}`}
-     </button>
-     <p className="mt-3 text-center text-[11px] tfaint">با کلیک روی پرداخت، سفارش شما «پرداخت‌شده» ثبت می‌شود.</p>
+     <div>
+      <p className="text-xs tfaint">مبلغ قابل پرداخت</p>
+      <p className="mt-1 text-3xl font-black">{money(order.total)} <span className="text-sm tdim">تومان</span></p>
+     </div>
+
+     {gateways.length > 0 && (
+      <div className="grid gap-2">
+       {gateways.map((gw) => (
+        <button
+         key={gw.id}
+         onClick={() => void startGateway(gw)}
+         disabled={gatewayBusy !== null}
+         className="btn btn-primary w-full justify-between py-3.5 text-sm disabled:opacity-60"
+        >
+         <span>پرداخت با {gw.name}</span>
+         <span className="flex items-center gap-2">
+          {gw.mode === "sandbox" && <span className="rounded-full bg-black/20 px-2 py-0.5 text-[10px] font-bold">آزمایشی</span>}
+          {gatewayBusy === gw.id ? "در حال اتصال..." : "ادامه"}
+         </span>
+        </button>
+       ))}
+       {gatewayError && <p className="rounded-xl bg-rose-500/10 px-3 py-2 text-[11px] font-bold leading-6 text-rose-400">{gatewayError}</p>}
+       <p className="text-center text-[10px] leading-5 tfaint">
+        با کلیک روی درگاه، درخواست آغاز پرداخت بر اساس مستندات درگاه (زرین‌پال zap.ir/apiv2 یا PaymentStartRequest بانک ملت) ارسال و شما به صفحه بانکی هدایت می‌شوید.
+       </p>
+      </div>
+     )}
+
+     <div className="rounded-2xl border border-dashed bd p-4" style={{ background: "var(--field)" }}>
+      <p className="text-xs font-black tdim">شبیه‌ساز پرداخت (تست بدون کسر مبلغ)</p>
+      <label className="mt-3 grid gap-1.5">
+       <span className="text-xs font-bold tdim">شماره کارت (تست)</span>
+       <input
+        className="input font-mono"
+        dir="ltr"
+        inputMode="numeric"
+        placeholder="6037-9911-2233-4455"
+        value={card}
+        onChange={(e) => setCard(e.target.value.replace(/[^0-9-]/g, "").slice(0, 19))}
+       />
+      </label>
+      <button onClick={pay} disabled={busy || card.replace(/\D/g, "").length < 12} className="btn btn-ghost mt-3 w-full py-3 text-sm">
+       {busy ? "در حال اتصال به درگاه..." : `تسویه تستی ${money(order.total)} تومان`}
+      </button>
+      <p className="mt-2 text-center text-[10px] tfaint">با کلیک روی تسویه تستی، سفارش شما «پرداخت‌شده» ثبت می‌شود.</p>
+     </div>
     </div>
    </div>
   </>
- );
+  );
 }

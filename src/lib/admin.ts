@@ -7,7 +7,7 @@ import { getProducts, type Product } from "./catalog";
 
 const KEY = "50500_admin_v1";
 
-export type AdminOrderItem = { slug: string; title: string; qty: number; price: number; image: string };
+export type AdminOrderItem = { slug: string; title: string; qty: number; price: number; image: string; leather?: string; thread?: string };
 
 export type AdminOrder = {
   code: string;
@@ -15,6 +15,10 @@ export type AdminOrder = {
   phone: string;
   province: string;
   city: string;
+  address?: string;
+  postalCode?: string;
+  notes?: string;
+  shippingMethod?: string;
   items: AdminOrderItem[];
   subtotal: number;
   shipping: number;
@@ -27,6 +31,12 @@ export type AdminOrder = {
   note?: string;
 };
 
+export const SHIPPING_LABEL: Record<string, string> = { post: "پست پیشتاز", tipax: "تیپاکس (پس‌کرایه)", pickup: "تحویل حضوری" };
+
+export function shippingLabel(id?: string): string {
+  return id ? SHIPPING_LABEL[id] ?? id : "—";
+}
+
 export type AdminProduct = {
   slug: string;
   title: string;
@@ -35,9 +45,15 @@ export type AdminProduct = {
   stock: number;
   category: "embroidered-leather" | "accessories";
   brandName?: string;
+  brandSlug?: string;
+  modelSlug?: string;
+  modelName?: string;
   image: string;
   active: boolean;
   cost: number;
+  body?: string;
+  custom?: boolean;
+  createdAt?: string;
 };
 
 export type AdminCoupon = {
@@ -129,18 +145,18 @@ export const ORDER_STATUS = [
 ] as const;
 
 const CUSTOMERS = [
-  ["حسین مرادی", "09121234567", "تهران", "تهران"],
-  ["سارا عباسی", "09351112233", "اصفهان", "اصفهان"],
-  ["کامران شریفی", "09137778899", "فارس", "شیراز"],
-  ["مینا رستمی", "09194445566", "البرز", "کرج"],
-  ["بهزاد نیک‌نام", "09151239876", "خراسان رضوی", "مشهد"],
-  ["لیلا قاسمی", "09112223344", "گیلان", "رشت"],
-  ["پیمان اکبری", "09143334455", "آذربایجان شرقی", "تبریز"],
-  ["نازنین طاهری", "09125556677", "تهران", "تهران"],
-  ["آرش فرهادی", "09381230000", "قم", "قم"],
-  ["رها کاظمی", "09127778811", "تهران", "تهران"],
-  ["سینا مرادی", "09128889900", "یزد", "یزد"],
-  ["نگار صادقی", "09122223344", "شیراز", "شیراز"],
+  ["حسین مرادی", "09121234567", "تهران", "تهران", "سعادت‌آباد، بزرگراه آزادگان، بلوار نواب، کوچه ۱۲، پلاک ۸", "14735621"],
+  ["سارا عباسی", "09351112233", "اصفهان", "اصفهان", "میدان نقش، بلوار زکریای رازی، کوچه ۴، پلاک ۲۱", "81934567"],
+  ["کامران شریفی", "09137778899", "فارس", "شیراز", "کوچک، بلوار چمران، نبش کوچه ۱۷، ساختمان آفتاب", "71745239"],
+  ["مینا رستمی", "09194445566", "البرز", "کرج", "شهرک غرب، بلوار امیرکبیر، کوچه ۹، پلاک ۳", "31756890"],
+  ["بهزاد نیک‌نام", "09151239876", "خراسان رضوی", "مشهد", "ولیعصر، خیابان احمدآباد، کوچه باغ، پلاک ۱۴", "91736521"],
+  ["لیلا قاسمی", "09112223344", "گیلان", "رشت", "بلوار جمهوری، کوچه ۲۸، ساختمان پارس", "41965321"],
+  ["پیمان اکبری", "09143334455", "آذربایجان شرقی", "تبریز", "خیابان مصلی، نبش کوچه طالقانی، پلاک ۶", "54789632"],
+  ["نازنین طاهری", "09125556677", "تهران", "تهران", "وحدت، بلوار آیت‌الله سعیدی، کوچه ۳، پلاک ۱۱", "13768945"],
+  ["آرش فرهادی", "09381230000", "قم", "قم", "بلوار ارم، کوچه ۱۵، ساختمان گلبرگ", "37186549"],
+  ["رها کاظمی", "09127778811", "تهران", "تهران", "پیروزی، بلوار کشاورز، کوچه ۲۲، پلاک ۴", "15869743"],
+  ["سینا مرادی", "09128889900", "یزد", "یزد", "خیابان ولی‌عصر، کوچه ۴۰، پلاک ۷", "89375612"],
+  ["نگار صادقی", "09122223344", "فارس", "شیراز", "سعادت‌آباد، بلوار شهید باهنر، کوچه ۵، پلاک ۹", "71938465"],
 ] as const;
 
 const STATUSES = ["delivered", "delivered", "shipped", "shipped", "producing", "producing", "confirmed", "pending", "pending", "delivered", "cancelled", "delivered"];
@@ -153,16 +169,18 @@ function d(offsetDays: number) {
 }
 
 function seed(): AdminState {
-  const catalog = getProducts();
+  const catalog = getProducts(true);
   const mats = catalog.filter((p) => p.category === "embroidered-leather");
-  const accessories = catalog.filter((p) => p.category === "accessories");
+  const accessories = catalog.filter((p) => p.category === "accessories").length
+    ? catalog.filter((p) => p.category === "accessories")
+    : mats;
 
-  const orders: AdminOrder[] = CUSTOMERS.map(([name, phone, province, city], i) => {
+  const orders: AdminOrder[] = CUSTOMERS.map(([name, phone, province, city, address, postalCode], i) => {
     const mat = mats[(i * 7 + 3) % mats.length];
     const acc = accessories[(i * 3) % accessories.length];
     const useMat = i % 3 !== 2;
     const items: AdminOrderItem[] = useMat
-      ? [{ slug: mat.slug, title: mat.title, qty: 1, price: mat.price, image: mat.image }]
+      ? [{ slug: mat.slug, title: mat.title, qty: 1, price: mat.price, image: mat.image, leather: "black", thread: i % 2 ? "white" : "red" }]
       : [{ slug: acc.slug, title: acc.title, qty: 1 + (i % 2), price: acc.price, image: acc.image }];
     if (i % 4 === 0) items.push({ slug: acc.slug, title: acc.title, qty: 1, price: acc.price, image: acc.image });
     const subtotal = items.reduce((s, it) => s + it.price * it.qty, 0);
@@ -174,6 +192,10 @@ function seed(): AdminState {
       phone,
       province,
       city,
+      address,
+      postalCode,
+      notes: i % 6 === 1 ? "تماس تلفنی قبل از ارسال" : i % 6 === 3 ? "گلدوزی لوگو با رنگ سفید" : undefined,
+      shippingMethod: i % 3 === 0 ? "post" : i % 3 === 1 ? "tipax" : "pickup",
       items,
       subtotal,
       shipping,
@@ -235,15 +257,15 @@ function seed(): AdminState {
 
   const perm = (read: boolean, write: boolean) => ({ read, write });
   const staff: StaffMember[] = [
-    { id: "s1", name: "نگین احمدی", email: "negin@50500.co", role: "مدیر فروش", active: true, lastSeen: d(0), perms: { orders: perm(true, true), products: perm(true, true), customers: perm(true, false), coupons: perm(true, true), reviews: perm(true, true), content: perm(false, false), finance: perm(true, false), affiliates: perm(false, false) } },
-    { id: "s2", name: "سعید کریمی", email: "saeed@50500.co", role: "کارشناس انبار", active: true, lastSeen: d(1), perms: { orders: perm(true, false), products: perm(true, true), customers: perm(false, false), coupons: perm(false, false), reviews: perm(false, false), content: perm(false, false), finance: perm(false, false), affiliates: perm(false, false) } },
-    { id: "s3", name: "مریم نوروزی", email: "maryam@50500.co", role: "پشتیبانی مشتریان", active: false, lastSeen: d(9), perms: { orders: perm(true, true), products: perm(true, false), customers: perm(true, true), coupons: perm(true, false), reviews: perm(true, true), content: perm(false, false), finance: perm(false, false), affiliates: perm(false, false) } },
+    { id: "s1", name: "نگین احمدی", email: "negin@50500.shop", role: "مدیر فروش", active: true, lastSeen: d(0), perms: { orders: perm(true, true), products: perm(true, true), customers: perm(true, false), coupons: perm(true, true), reviews: perm(true, true), content: perm(false, false), finance: perm(true, false), affiliates: perm(false, false) } },
+    { id: "s2", name: "سعید کریمی", email: "saeed@50500.shop", role: "کارشناس انبار", active: true, lastSeen: d(1), perms: { orders: perm(true, false), products: perm(true, true), customers: perm(false, false), coupons: perm(false, false), reviews: perm(false, false), content: perm(false, false), finance: perm(false, false), affiliates: perm(false, false) } },
+    { id: "s3", name: "مریم نوروزی", email: "maryam@50500.shop", role: "پشتیبانی مشتریان", active: false, lastSeen: d(9), perms: { orders: perm(true, true), products: perm(true, false), customers: perm(true, true), coupons: perm(true, false), reviews: perm(true, true), content: perm(false, false), finance: perm(false, false), affiliates: perm(false, false) } },
   ];
 
   const settings: AdminSettings = {
-    storeName: "فروشگاه 50500",
+    storeName: "50500.shop",
     phone: "۰۲۱-۹۱۰50500",
-    email: "info@store50500.ir",
+    email: "info@50500.shop",
     address: "تهران، بزرگراه جلال آل‌احمد، دفتر فروش 50500",
     freeShipping: 5000000,
     cod: true,
@@ -257,13 +279,34 @@ function seed(): AdminState {
 
 export const DEFAULT_STATE: AdminState = seed();
 
+const PW_KEY = "50500_admin_pw_v1";
+
+/** Demo admin password, editable from پنل ← تنظیمات. Persists in
+    localStorage so a refresh keeps the owner's chosen password. */
+export function getAdminPassword(): string {
+  try {
+    const saved = localStorage.getItem(PW_KEY);
+    return typeof saved === "string" && saved.trim() ? saved : "50500admin";
+  } catch {
+    return "50500admin";
+  }
+}
+
+export function setAdminPassword(next: string): void {
+  try {
+    localStorage.setItem(PW_KEY, next.trim());
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 export function loadAdmin(): AdminState {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw) as Partial<AdminState>;
     const base = seed();
-    return {
+    const merged = {
       ...base,
       ...parsed,
       settings: { ...base.settings, ...(parsed.settings ?? {}) },
@@ -271,6 +314,18 @@ export function loadAdmin(): AdminState {
       affiliates: parsed.affiliates ?? base.affiliates,
       finance: parsed.finance ?? base.finance,
       staff: parsed.staff ?? base.staff,
+    };
+    const fix = (v: string) => String(v ?? "")
+      .replace(/info@store50500\.ir/gi, "info@50500.shop")
+      .replace(/فروشگاه ۵۰۵۰۰/gi, "50500.shop")
+      .replace(/فروشگاه 50500/gi, "50500.shop");
+    return {
+      ...merged,
+      settings: {
+        ...merged.settings,
+        storeName: merged.settings.storeName === "فروشگاه 50500" || !merged.settings.storeName ? "50500.shop" : fix(merged.settings.storeName),
+        email: fix(merged.settings.email),
+      },
     };
   } catch {
     return seed();
@@ -395,4 +450,130 @@ export function downloadAdminBackup(state: AdminState, content: unknown) {
   a.download = `50500-backup-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+/* ------------------------------------------------------------------ *
+ * Live customer orders: merge storefront orders (50500_orders_v1)
+ * with the demo dataset so the panel always shows full customer data.
+ * ------------------------------------------------------------------ */
+
+type StoredOrder = {
+  code: string;
+  items: { slug: string; title: string; qty: number; price: number; image: string; leather?: string; thread?: string }[];
+  customer: { name: string; phone: string; province: string; city: string; address: string; postalCode: string; notes: string };
+  shippingMethod: string;
+  payment: string;
+  paymentStatus: "paid" | "pending" | "cod";
+  subtotal: number;
+  shipping: number;
+  discount: number;
+  total: number;
+  status: string;
+  createdAt: string;
+};
+
+export function mergeLiveOrders(orders: AdminOrder[]): AdminOrder[] {
+  let live: AdminOrder[] = [];
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem("50500_orders_v1") : null;
+    if (raw) {
+      const list = JSON.parse(raw) as StoredOrder[];
+      live = list.map((o) => ({
+        code: o.code,
+        customer: o.customer.name,
+        phone: o.customer.phone,
+        province: o.customer.province,
+        city: o.customer.city,
+        address: o.customer.address,
+        postalCode: o.customer.postalCode,
+        notes: o.customer.notes || undefined,
+        shippingMethod: o.shippingMethod,
+        items: o.items.map((it) => ({ slug: it.slug, title: it.title, qty: it.qty, price: it.price, image: it.image, leather: it.leather, thread: it.thread })),
+        subtotal: o.subtotal,
+        shipping: o.shipping,
+        discount: o.discount,
+        total: o.total,
+        status: o.status,
+        payment: o.paymentStatus === "paid" ? "paid" : o.paymentStatus === "cod" ? "cod" : "pending",
+        createdAt: o.createdAt,
+      }));
+    }
+  } catch { /* malformed storage — ignore */ }
+  const seen = new Set<string>();
+  return [...live, ...orders].filter((o) => (seen.has(o.code) ? false : (seen.add(o.code), true)));
+}
+
+/** Patches a storefront (50500_orders_v1) order directly when the admin updates it. */
+export function patchStoredOrder(code: string, patch: { status?: string; payment?: AdminOrder["payment"]; tracking?: string; note?: string }): boolean {
+  try {
+    const raw = localStorage.getItem("50500_orders_v1");
+    if (!raw) return false;
+    const list = JSON.parse(raw) as (StoredOrder & { tracking?: string })[];
+    const idx = list.findIndex((o) => o.code === code);
+    if (idx === -1) return false;
+    const o = list[idx];
+    if (patch.payment === "paid") {
+      o.paymentStatus = "paid";
+      o.status = patch.status ?? (o.status === "pending" ? "confirmed" : o.status);
+    } else if (patch.status) {
+      o.status = patch.status;
+    }
+    if (patch.tracking !== undefined) o.tracking = patch.tracking || undefined;
+    list[idx] = o;
+    localStorage.setItem("50500_orders_v1", JSON.stringify(list));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Excel/CSV export and invoice & shipping-label printing
+ * ------------------------------------------------------------------ */
+
+function esc(v: unknown): string {
+  return `"${String(v ?? "").replace(/"/g, '""')}"`;
+}
+
+export function ordersToCSV(orders: AdminOrder[]): string {
+  const head = ["code", "customer", "phone", "province", "city", "address", "postalCode", "items", "subtotal", "discount", "shipping", "total", "status", "payment", "shippingMethod", "notes", "createdAt"];
+  const rows = orders.map((o) =>
+    [
+      o.code, o.customer, o.phone, o.province, o.city, o.address ?? "", o.postalCode ?? "",
+      o.items.map((i) => `${i.title} ×${i.qty}${i.leather ? ` (چرم ${i.leather})` : ""}${i.thread ? ` (گلدوزی ${i.thread})` : ""}`).join(" | "),
+      o.subtotal, o.discount, o.shipping, o.total,
+      o.status, o.payment, SHIPPING_LABEL[o.shippingMethod ?? ""] ?? o.shippingMethod ?? "", o.notes ?? "", o.createdAt,
+    ].map(esc).join(","),
+  );
+  return "\uFEFF" + [head.join(","), ...rows].join("\n");
+}
+
+export function downloadCSV(filename: string, csv: string) {
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function printHtml(title: string, body: string) {
+  const win = window.open("", "_blank", "width=820,height=900");
+  if (!win) return;
+  win.document.write(`<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>${title}</title>
+  <style>body{font-family:Tahoma,Arial,sans-serif;margin:24px;color:#111}h1{font-size:20px;margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #ddd;padding:8px;text-align:right;font-size:13px}th{background:#f5f5f5}.muted{color:#666;font-size:12px}.box{border:1px solid #ccc;border-radius:12px;padding:14px;margin-top:12px}.total{font-size:16px;font-weight:bold}.label{border:2px dashed #333;padding:18px;border-radius:12px;font-size:15px;line-height:2}@media print{button{display:none}}</style></head><body>${body}<p class="muted" style="margin-top:24px">50500.shop · فروشگاه کفپوش چرمی گلدوزی اختصاصی خودرو</p><script>window.onload=()=>{window.print();}</script></body></html>`);
+  win.document.close();
+}
+
+export function printInvoice(o: AdminOrder) {
+  const rows = o.items.map((it) => `<tr><td>${it.title}${it.leather ? `<div class="muted">چرم ${it.leather}${it.thread ? ` · گلدوزی ${it.thread}` : ""}</div>` : ""}</td><td>${it.qty}</td><td>${money(it.price)}</td><td>${money(it.price * it.qty)}</td></tr>`).join("");
+  const date = new Date(o.createdAt).toLocaleDateString("fa-IR");
+  printHtml(`فاکتور ${o.code}`, `<h1>فاکتور فروش</h1><div class="muted">شماره سفارش: <b>${o.code}</b> · تاریخ: ${date}</div>
+  <div class="box"><b>خریدار:</b> ${o.customer} · ${o.phone}<br><b>نشانی:</b> ${o.province}، ${o.city}${o.address ? `، ${o.address}` : ""}${o.postalCode ? ` · کد پستی ${o.postalCode}` : ""}</div>
+  <table><thead><tr><th>کالا</th><th>تعداد</th><th>قیمت واحد</th><th>جمع</th></tr></thead><tbody>${rows}</tbody></table>
+  <div class="box"><div>جمع کالاها: ${money(o.subtotal)}</div>${o.discount ? `<div>تخفیف: ${money(o.discount)}</div>` : ""}<div>هزینه ارسال (${shippingLabel(o.shippingMethod)}): ${o.shipping ? money(o.shipping) : "رایگان"}</div><div class="total">مبلغ کل: ${money(o.total)} تومان</div></div>`);
+}
+
+export function printLabel(o: AdminOrder) {
+  printHtml(`برچسب ارسال ${o.code}`, `<div class="label"><b>گیرنده:</b> ${o.customer}<br><b>تلفن:</b> ${o.phone}<br><b>نشانی:</b> ${o.province}، ${o.city}${o.address ? `، ${o.address}` : ""}<br>${o.postalCode ? `<b>کد پستی:</b> ${o.postalCode}<br>` : ""}<b>کد سفارش:</b> ${o.code}${o.tracking ? `<br><b>کد رهگیری:</b> ${o.tracking}` : ""}<br><b>فرستنده:</b> 50500.shop</div>`);
 }

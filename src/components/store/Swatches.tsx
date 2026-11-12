@@ -1,9 +1,6 @@
 import { Check } from "lucide-react";
 import { useId } from "react";
-import { LeatherCanvas } from "./LeatherCanvas";
 import { mixHex } from "@/lib/leather";
-import { cn } from "@/lib/format";
-import { LEATHER_COLORS, OPTION_LABELS, THREAD_COLORS, leatherById, threadById } from "@/lib/options";
 
 /** The production design of every 50500 mat. */
 export const MAT_PATTERN = "diamond" as const;
@@ -12,16 +9,7 @@ export const MAT_PATTERN = "diamond" as const;
 const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='.55'/%3E%3C/svg%3E\")";
 
-function PickerHead({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="mb-3 flex items-center justify-between text-sm">
-      <span className="font-bold tdim">{label}</span>
-      <span className="rounded-full soft px-2.5 py-0.5 text-xs tdim">{value}</span>
-    </div>
-  );
-}
-
-function ActiveBadge() {
+export function ActiveBadge() {
   return (
     <span className="absolute end-1 top-1 z-10 grid size-5 place-items-center rounded-full bg-white text-black shadow-[0_2px_8px_rgba(0,0,0,0.45)]">
       <Check className="size-3" strokeWidth={3.2} />
@@ -148,89 +136,5 @@ export function ThreadSpool({ color, className = "" }: { color: string; classNam
       <path d="M48.5 43 C 55 47.5, 57.5 56, 54.5 63.5 C 52.5 68.5, 47.5 70.5, 44.5 68.5" stroke={color} strokeWidth="1.4" fill="none" strokeLinecap="round" opacity="0.95" />
       <path d="M48.5 43 C 55 47.5, 57.5 56, 54.5 63.5" stroke={light} strokeWidth="0.4" fill="none" strokeLinecap="round" opacity="0.55" />
     </svg>
-  );
-}
-
-export function LeatherPicker({
-  value,
-  onChange,
-  threadHex,
-}: {
-  value: string;
-  onChange: (id: string) => void;
-  threadHex: string;
-}) {
-  /* Slightly muted thread on the sample keeps the stitching from looking printed. */
-  const stitch = mixHex(threadHex, "#000000", 0.14);
-  return (
-    <div>
-      <PickerHead label={OPTION_LABELS.leather} value={leatherById(value).name} />
-      <div className="grid grid-cols-4 gap-x-2.5 gap-y-3 sm:grid-cols-7">
-        {LEATHER_COLORS.map((c) => {
-          const active = c.id === value;
-          return (
-            <button key={c.id} type="button" onClick={() => onChange(c.id)} aria-pressed={active} aria-label={`چرم ${c.name}`} className="group flex flex-col items-center gap-1.5">
-              <span
-                className={cn(
-                  "relative block aspect-square w-full overflow-hidden rounded-2xl",
-                  "shadow-[0_10px_18px_-10px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-14px_24px_rgba(0,0,0,0.4)]",
-                  "transition duration-200",
-                  active ? "ring-2 ring-brand-500 ring-offset-2 ring-offset-[var(--surface-2,transparent)]" : "ring-1 ring-[var(--line)] group-hover:ring-[var(--line-strong)]",
-                )}
-              >
-                {/* Finer quilting + grain: reads as photographed leather, not vector art. */}
-                <LeatherCanvas
-                  leather={c.hex}
-                  thread={stitch}
-                  pattern={MAT_PATTERN}
-                  units={150}
-                  cell={30}
-                  maxPixels={72_000}
-                  className="size-full transition-transform duration-500 group-hover:scale-[1.05]"
-                  label={`نمونه چرم ${c.name}`}
-                />
-                <LeatherGrain />
-                {active && <ActiveBadge />}
-              </span>
-              <span className={cn("text-[11px] font-semibold", active ? "text-white" : "tdim")}>{c.name}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-export function ThreadPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
-  return (
-    <div>
-      <PickerHead label={OPTION_LABELS.thread} value={threadById(value).name} />
-      <div className="grid grid-cols-4 gap-x-2.5 gap-y-3 sm:grid-cols-8">
-        {THREAD_COLORS.map((c) => {
-          const active = c.id === value;
-          return (
-            <button key={c.id} type="button" onClick={() => onChange(c.id)} aria-pressed={active} aria-label={`نخ گلدوزی ${c.name}`} className="group flex flex-col items-center gap-1.5">
-              <span
-                className={cn(
-                  "relative grid aspect-[4/5] w-full place-items-center overflow-hidden rounded-2xl",
-                  "bg-[radial-gradient(120%_90%_at_50%_15%,rgba(255,255,255,0.09),transparent_65%),linear-gradient(180deg,#171a1f,#0e1014)]",
-                  "transition duration-200",
-                  active ? "ring-2 ring-brand-500 ring-offset-2 ring-offset-[var(--surface-2,transparent)]" : "ring-1 ring-[var(--line)] group-hover:ring-[var(--line-strong)]",
-                )}
-              >
-                <ThreadSpool color={c.hex} className="relative z-10 h-[82%] w-auto drop-shadow-[0_5px_7px_rgba(0,0,0,0.55)] transition-transform duration-300 group-hover:-translate-y-0.5" />
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-0"
-                  style={{ background: "radial-gradient(90% 70% at 50% 0%, rgba(255,255,255,0.08), transparent 60%)" }}
-                />
-                {active && <ActiveBadge />}
-              </span>
-              <span className={cn("text-[11px] font-semibold", active ? "text-white" : "tdim")}>{c.name}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
   );
 }

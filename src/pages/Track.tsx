@@ -2,12 +2,15 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, PackageSearch, Search, ShoppingBag } from "lucide-react";
 import { PageHero } from "@/components/ui";
+import { useSiteContent } from "@/lib/site-content";
 import { StatusTimeline } from "./Order";
 import { findOrders, getOrder, type Order } from "@/lib/cart";
 import { ORDER_STATUSES, PAYMENT_METHODS, SHIPPING_METHODS } from "@/data/content";
 import { cn, fa, faDate, maskPhone, money, normalizePhone } from "@/lib/format";
 
 export default function Track() {
+  const { content } = useSiteContent();
+  const trackPage = content.pageContent.track ?? {};
  const [code, setCode] = useState("");
  const [phone, setPhone] = useState("");
  const [result, setResult] = useState<Order | null>(null);
@@ -40,8 +43,8 @@ export default function Track() {
   <>
    <PageHero
     eyebrow="رهگیری سفارش"
-    title="پیگیری سفارش"
-    desc="کد سفارش (۸ رقمی) و شماره موبایل خود را وارد کنید تا وضعیت سفارش را ببینید."
+    title={trackPage.title || "پیگیری سفارش"}
+    desc={trackPage.desc || "کد سفارش (۸ رقمی) و شماره موبایل خود را وارد کنید تا وضعیت سفارش را ببینید."}
    />
    <div className="container-x py-10 lg:py-14">
     <form onSubmit={submit} className="mx-auto grid max-w-2xl gap-3 rounded-[2rem] border bd p-6 sm:grid-cols-[1fr_1fr_auto] sm:p-5" style={{ background: "var(--surface-1)" }}>

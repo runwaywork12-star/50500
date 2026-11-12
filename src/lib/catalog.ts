@@ -3,9 +3,12 @@ import {
  ACCESSORIES,
  CAR_GROUPS,
  carGroupById,
+ matImageFor,
  rotatedMatImages,
 } from "@/data/content";
+import { getCustomProducts, getSubItems, type CustomProduct, type SubItem } from "./product-overrides";
 import { normalizeFa } from "./format";
+import { getProductOverrides } from "./product-overrides";
 
 export type ProductSpec = { label: string; value: string };
 
@@ -22,6 +25,7 @@ export type Product = {
  ratingCount: number;
  salesCount: number;
  featured: boolean;
+ active: boolean;
  delivery: string;
  body: string;
  specs: ProductSpec[];
@@ -104,7 +108,7 @@ export function carFullName(brand: Brand, modelName: string): string {
 
 let cache: Product[] | null = null;
 
-export function getProducts(): Product[] {
+function baseProducts(): Product[] {
  if (cache) return cache;
  const products: Product[] = [];
  let id = 1;
@@ -129,6 +133,7 @@ export function getProducts(): Product[] {
     ratingCount: 40 + (h % 260),
     salesCount: 300 + (h % 2200),
     featured: FEATURED.has(slug),
+    active: true,
     delivery: "۴ تا ۷ روز کاری",
     body: matBody(car),
     specs: MAT_SPECS,
@@ -156,24 +161,114 @@ export function getProducts(): Product[] {
    ratingCount: a.ratingCount,
    salesCount: a.salesCount,
    featured: a.featured,
+   active: true,
    delivery: a.delivery,
    body: a.body,
    specs: a.specs,
    category: "accessories",
-   optionsType: "none",
+    optionsType: "none",
   });
  }
  cache = products;
  return products;
 }
 
+/** Products added from the admin panel (custom catalog). */
+function customProducts(): Product[] {
+ return getCustomProducts().map((c, i) => toProduct(c, i));
+}
+
+export function toProduct(c: CustomProduct, i: number): Product {
+ const isMat = c.category === "embroidered-leather";
+ const image = c.image || matImageFor("black");
+ return {
+  id: 900000 + i,
+  slug: c.slug,
+  title: c.title,
+  price: c.price,
+  comparePrice: c.comparePrice,
+  stock: c.stock,
+  image,
+  images: c.image ? [c.image] : [image],
+  rating: 5,
+  ratingCount: 4 + i,
+  salesCount: 10 + i,
+  featured: false,
+  active: c.active,
+  delivery: "۴ تا ۷ روز کاری",
+  body: c.body,
+  specs: isMat ? MAT_SPECS : [],
+  category: c.category,
+  optionsType: isMat ? "leather" : "none",
+  brandSlug: c.brandSlug ?? undefined,
+  brandName: c.brandName ?? undefined,
+  modelSlug: c.modelSlug ?? undefined,
+  modelName: c.modelName ?? undefined,
+ };
+}
+
+export function getProducts(includeInactive = false): Product[] {
+ const overrides = getProductOverrides();
+ const all = [
+  ...baseProducts().map((p) => {
+   const o = overrides[p.slug];
+   if (!o) return p;
+   const image = o.image ?? p.image;
+   return {
+    ...p,
+    title: o.title ?? p.title,
+    price: o.price ?? p.price,
+    comparePrice: o.comparePrice === undefined ? p.comparePrice : o.comparePrice,
+    stock: o.stock ?? p.stock,
+    active: o.active ?? p.active,
+    image,
+    images: o.image ? [image, ...p.images.filter((x) => x !== image)] : p.images,
+   };
+  }),
+  ...customProducts(),
+ ];
+ return all.filter((p) => includeInactive || p.active);
+}
+
+/** Resolves any purchasable slug, including `sub:<parent>:<id>` sub-items (زیرمجموعه). */
 export function getProduct(slug: string | undefined): Product | undefined {
- return getProducts().find((p) => p.slug === slug);
+ if (!slug) return undefined;
+ const all = getProducts(true);
+ const found = all.find((p) => p.slug === slug);
+ if (found) return found;
+ if (slug.startsWith("sub:")) {
+  const parts = slug.split(":");
+  const parent = all.find((p) => p.slug === parts[1]);
+  const sub: SubItem | undefined = parent ? getSubItems(parent.slug).find((s) => s.id === parts[2]) : undefined;
+  if (parent && sub) {
+   return {
+    id: -1,
+    slug,
+    title: sub.title,
+    price: sub.price,
+    comparePrice: null,
+    stock: Math.max(0, sub.stock),
+    image: parent.image,
+    images: [parent.image],
+    rating: 5,
+    ratingCount: 0,
+    salesCount: 0,
+    featured: false,
+    active: true,
+    delivery: "۴ تا ۷ روز کاری",
+    body: sub.desc ?? `لوازم جانبی تکمیلی برای ${parent.title}`,
+    specs: [],
+    category: "accessories",
+    optionsType: "none",
+    brandName: parent.brandName ?? undefined,
+   };
+  }
+ }
+ return undefined;
 }
 
 export const CATEGORIES = [
  { slug: "embroidered-leather", name: "کفپوش چرمی گلدوزی", shortName: "کفپوش چرمی گلدوزی", count: 0 },
- { slug: "accessories", name: "همه لوازم جانبی خودرو", shortName: "لوازم جانبی", count: 0 },
 ];
 
 export const SORT_OPTIONS = [

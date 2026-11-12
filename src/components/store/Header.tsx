@@ -42,10 +42,8 @@ export function Header({ theme, onToggleTheme }: { theme: "dark" | "light"; onTo
   const megaRef = useRef<HTMLDivElement>(null);
   const restoringFocus = useRef(false);
 
-  const links = [
+  const links: { href: string; label: string; mega?: boolean; badge?: string }[] = [
     { href: "/", label: "خانه" },
-    { href: "/products", label: "فروشگاه", mega: true },
-    { href: "/products?discounted=1&sort=discount", label: "پیشنهاد ویژه", badge: "٪" },
     { href: "/track", label: "پیگیری سفارش" },
     { href: "/blog", label: "مجله" },
     { href: "/about", label: "درباره ما" },
@@ -107,6 +105,20 @@ export function Header({ theme, onToggleTheme }: { theme: "dark" | "light"; onTo
 
   return (
     <>
+      {/* mobile announcement strip */}
+      <div className="relative z-40 overflow-hidden border-b bd bg-linear-to-l from-brand-600/25 via-ink-900 to-ink-900 text-[11px] md:hidden">
+        <div className="container-x site-header-container flex h-8 items-center justify-between gap-3">
+          <p className="flex min-w-0 items-center gap-1.5 tdim">
+            <Truck className="size-3.5 shrink-0 text-brand-400" />
+            <span className="truncate">{content.promoBar.shipping}</span>
+          </p>
+          <p className="flex shrink-0 items-center gap-1.5 tdim">
+            <BadgePercent className="size-3.5 text-brand-400" /> کد
+            <b dir="ltr" className="rounded bg-brand-500/20 px-1.5 font-english text-brand-200">{content.promoBar.code}</b>
+          </p>
+        </div>
+      </div>
+
       {/* announcement top bar */}
       <div className="relative z-40 hidden border-b bd bg-linear-to-l from-brand-600/25 via-ink-900 to-ink-900 text-xs md:block">
         <div className="container-x site-header-container flex h-9 items-center justify-between gap-4">
@@ -125,6 +137,7 @@ export function Header({ theme, onToggleTheme }: { theme: "dark" | "light"; onTo
             <a href={content.contact.phoneHref} className="hidden items-center gap-1.5 py-2 tdim transition-colors hover:text-white sm:flex">
               <Phone className="size-3.5" /> {content.contact.phone}
             </a>
+
             <button
               onClick={onToggleTheme}
               className="theme-switch-toggle cursor-pointer"
@@ -203,7 +216,7 @@ export function Header({ theme, onToggleTheme }: { theme: "dark" | "light"; onTo
                           <div className={styles.categoryColumn}>
                             <p className={styles.overline}>انتخاب محصول</p>
                             <Link href="/products?category=embroidered-leather" className={styles.featuredLink}>
-                              <img src={img("images/mat-black-red.webp")} alt="کفپوش چرمی گلدوزی" className={styles.featureImage} />
+                              <img src={img("images/products/mat-black.webp")} alt="کفپوش چرمی گلدوزی" className={styles.featureImage} />
                               <span className={styles.featureCopy}>
                                 <strong>کفپوش چرمی گلدوزی</strong>
                                 <small>{fa(modelCount)} مدل خودرو · رنگ‌بندی دلخواه</small>
@@ -226,9 +239,9 @@ export function Header({ theme, onToggleTheme }: { theme: "dark" | "light"; onTo
                                 );
                               })}
                             </div>
-                            <Link href="/products?category=accessories" className={styles.accessoryLink}>
-                              <img src={img("images/accessories/wheel-cover.svg")} alt="" className={styles.accessoryImage} />
-                              <span>لوازم جانبی خودرو</span>
+                            <Link href="/products" className={styles.accessoryLink}>
+                              <img src={img("images/showcase/card-front-mat.jpg")} alt="" className={styles.accessoryImage} />
+                              <span>کفپوش اختصاصی خودرو</span>
                               <ChevronLeft className={styles.arrow} />
                             </Link>
                           </div>
@@ -369,7 +382,7 @@ export function Header({ theme, onToggleTheme }: { theme: "dark" | "light"; onTo
       {menuOpen && (
         <div id="mobile-navigation-drawer" className="fixed inset-0 z-[60] lg:hidden" role="dialog" aria-modal="true" aria-label="منوی سایت">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
-          <div className="absolute inset-y-0 end-0 flex w-[86%] max-w-sm flex-col surface animate-page-in overflow-y-auto p-5 shadow-2xl">
+          <div className="absolute inset-y-0 end-0 flex w-[86%] max-w-sm flex-col surface animate-page-in overflow-y-auto p-5 pb-28 shadow-2xl lg:pb-5">
             <div className="flex items-center justify-between border-b bd pb-4">
               <Logo />
               <button onClick={() => setMenuOpen(false)} className="grid size-10 place-items-center rounded-xl soft" aria-label="بستن منو">
@@ -381,16 +394,6 @@ export function Header({ theme, onToggleTheme }: { theme: "dark" | "light"; onTo
               <Search className="pointer-events-none absolute end-3 top-1/2 size-4 -translate-y-1/2 tfaint" />
               <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="جستجوی نام خودرو..." className="input pe-9" />
             </form>
-
-            <Link
-              href={user ? "/account" : "/login"}
-              onClick={() => setMenuOpen(false)}
-              className="mt-4 flex items-center gap-2 rounded-xl border bd px-4 py-3 text-sm font-bold transition soft-h sm:hidden"
-            >
-              <UserRound className="size-4 text-brand-400" />
-              {user ? "حساب کاربری" : "ورود / ثبت‌نام"}
-              <ChevronLeft className="ms-auto size-4 tdim" />
-            </Link>
 
             <nav className="mt-5 grid gap-1">
               {links.map((l) => (
@@ -407,16 +410,27 @@ export function Header({ theme, onToggleTheme }: { theme: "dark" | "light"; onTo
 
             <p className="mt-6 mb-2 text-[11px] font-black tracking-widest tfaint">خرید بر اساس گروه خودرو</p>
             <div className="grid gap-2">
-              {CAR_GROUPS.map((g) => (
-                <Link key={g.id} href={`/products?group=${g.id}`} onClick={() => setMenuOpen(false)} className="flex items-center gap-3 rounded-2xl border bd p-3">
-                  <span className="text-sm font-bold">{g.name}</span>
-                </Link>
-              ))}
+              {CAR_GROUPS.map((g) => {
+                const countModels = BRANDS.filter((b) => g.brands.includes(b.slug)).reduce((sum, b) => sum + b.models.length, 0);
+                return (
+                  <Link key={g.id} href={`/products?group=${g.id}`} onClick={() => setMenuOpen(false)} className="flex items-center gap-3 rounded-2xl border bd p-2.5 transition soft-h">
+                    <span className="size-11 shrink-0 overflow-hidden rounded-xl" style={{ background: "var(--muted-surface)" }}>
+                      <img src={g.image} alt="" className="size-full object-cover" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-bold">{g.name}</span>
+                      <span className="mt-0.5 block text-[11px] tdim">{fa(countModels)} مدل خودرو</span>
+                    </span>
+                    <ChevronLeft className="size-4 shrink-0 tdim" />
+                  </Link>
+                );
+              })}
             </div>
 
-            <a href={content.contact.phoneHref} className="btn btn-primary mt-6 py-3 text-sm">
-              <Phone className="size-4" /> تماس: {content.contact.phone}
+            <a href={content.contact.phoneHref} className="btn btn-primary mt-6 py-3.5 text-sm">
+              <Phone className="size-4" /> تماس با پشتیبانی: {content.contact.phone}
             </a>
+
           </div>
         </div>
       )}

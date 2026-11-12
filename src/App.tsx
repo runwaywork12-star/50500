@@ -4,6 +4,9 @@ import { Phone, ShieldCheck, Wrench } from "lucide-react";
 import { ThemeLink as Link } from "@/components/ThemeLink";
 import { Header } from "@/components/store/Header";
 import { Footer } from "@/components/store/Footer";
+import { MobileTabBar } from "@/components/store/MobileTabBar";
+import { PageRuntime } from "@/components/store/PageRuntime";
+import { cn } from "@/lib/format";
 import { CartProvider } from "@/lib/cart";
 import { AuthProvider } from "@/lib/auth.tsx";
 import { SiteContentProvider, loadSiteContent, useSiteContent } from "@/lib/site-content";
@@ -14,7 +17,8 @@ import Cart from "@/pages/Cart";
 import Checkout from "@/pages/Checkout";
 import { OrderPage, PayPage } from "@/pages/Order";
 import Track from "@/pages/Track";
-import { About, Blog, BlogPost, Contact, NotFound } from "@/pages/Static";
+import { About, Contact, NotFound } from "@/pages/Static";
+import { Blog, BlogPost } from "@/pages/Blog";
 import { Account, ForgotPassword, Login, Register } from "@/pages/Auth";
 import Admin from "@/pages/Admin";
 
@@ -73,6 +77,10 @@ function Storefront() {
   const { content } = useSiteContent();
   const { pathname } = useLocation();
   const isAdmin = pathname.startsWith("/admin");
+  /* Keep the buying flow distraction-free: no bottom nav during cart → payment. */
+  const isBuyingFlow =
+    /^\/(cart|checkout|order|pay)(\/|$)/.test(pathname) || /^\/products\/[^/]+\/?$/.test(pathname);
+  const showMobileBar = !isAdmin && !isBuyingFlow;
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = typeof window !== "undefined" ? localStorage.getItem("50500_theme") : null;
     if (saved === "light" || saved === "dark") return saved;
@@ -98,33 +106,36 @@ function Storefront() {
   }, [content.defaultTheme]);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className={cn("flex min-h-screen flex-col", showMobileBar && "has-mobile-tabbar")}>
       {!isAdmin && <Header theme={theme} onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} />}
       <main className="flex-1 animate-page-in">
         <MaintenanceGate>
-          <Routes>
-            <Route path="/" element={<Home theme={theme} />} />
-            <Route path="/products" element={<Products />} />
-            <Route path="/products/:slug" element={<ProductDetail />} />
-            <Route path="/cart" element={<Cart />} />
-            <Route path="/checkout" element={<Checkout />} />
-            <Route path="/order/:code" element={<OrderPage />} />
-            <Route path="/pay/:code" element={<PayPage />} />
-            <Route path="/track" element={<Track />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/blog" element={<Blog />} />
-            <Route path="/blog/:slug" element={<BlogPost />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgot" element={<ForgotPassword />} />
-            <Route path="/account" element={<Account />} />
-            <Route path="/admin/*" element={<Admin />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <PageRuntime>
+            <Routes>
+              <Route path="/" element={<Home theme={theme} />} />
+              <Route path="/products" element={<Products />} />
+              <Route path="/products/:slug" element={<ProductDetail />} />
+              <Route path="/cart" element={<Cart />} />
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/order/:code" element={<OrderPage />} />
+              <Route path="/pay/:code" element={<PayPage />} />
+              <Route path="/track" element={<Track />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:slug" element={<BlogPost />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/forgot" element={<ForgotPassword />} />
+              <Route path="/account" element={<Account />} />
+              <Route path="/admin/*" element={<Admin />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </PageRuntime>
         </MaintenanceGate>
       </main>
       {!isAdmin && <Footer />}
+      {showMobileBar && <MobileTabBar />}
     </div>
   );
 }

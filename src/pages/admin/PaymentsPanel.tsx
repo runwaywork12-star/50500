@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Copy, CreditCard, Download, Save, ShieldCheck, XCircle } from "lucide-react";
-import { GATEWAY_FIELDS, downloadJSON, gatewayIssues, getSecret, patchControlState, setSecret, useControlState, type GatewayConfig, type GatewayId } from "@/lib/control-center";
+import { GATEWAY_DOCS, GATEWAY_FIELDS, downloadJSON, gatewayIssues, getSecret, patchControlState, setSecret, useControlState, type GatewayConfig, type GatewayId } from "@/lib/control-center";
 import { dateFa, money, type AdminOrder } from "@/lib/admin";
 import { fa } from "@/lib/format";
 import { api, isServerMode } from "@/lib/api";
@@ -67,7 +67,7 @@ export function PaymentsPanel({ onToast, orders }: { onToast: (message: string) 
     <div className="grid gap-5">
       <PanelHeader
         title="درگاه‌های پرداخت"
-        description="تنظیم زرین‌پال، سداد، سپ، زیبال و کارت‌به‌کارت؛ اعتبارسنجی اطلاعات و مشاهده وضعیت مالی سفارش‌ها."
+        description="تنظیم زرین‌پال و به پرداخت ملت (بانک ملت) طبق مستندات رسمی، به‌همراه سداد، سپ، زیبال و کارت‌به‌کارت."
         actions={<>
           <button onClick={() => downloadJSON("50500-gateway-settings.json", state.gateways)} className="btn btn-ghost px-4 py-2.5 text-xs"><Download className="size-4" /> خروجی بدون رمز</button>
           <button onClick={exportOrders} className="btn btn-ghost px-4 py-2.5 text-xs"><Download className="size-4" /> خروجی CSV سفارش‌ها</button>
@@ -76,6 +76,36 @@ export function PaymentsPanel({ onToast, orders }: { onToast: (message: string) 
       {isServerMode()
         ? <Notice>درگاه‌ها به سرور متصل‌اند: مبلغ همیشه از دیتابیس خوانده می‌شود، تأیید تراکنش سرور‌به‌سرور انجام می‌شود و اطلاعات پذیرنده با AES-256 رمزنگاری شده است. قبل از حالت «واقعی»، یک پرداخت آزمایشی کامل انجام دهید.</Notice>
         : <Notice tone="warning">نسخه نمایشی: تنظیمات و اعتبارسنجی واقعی است اما اتصال بانکی فقط در نسخه سرور انجام می‌شود.</Notice>}
+
+      {/* راهنمای مستندات درگاه‌ها */}
+      <div className="grid gap-3 lg:grid-cols-2">
+        {(["zarinpal", "mellat"] as const).map((id) => {
+          const doc = GATEWAY_DOCS[id];
+          const gw = state.gateways.find((g) => g.id === id);
+          if (!doc || !gw) return null;
+          const issuesCount = gatewayIssues(gw).length;
+          return (
+            <Card key={id} title={doc.title} description={doc.summary} action={<Badge tone={gw.enabled ? (issuesCount ? "amber" : "green") : "neutral"}>{gw.enabled ? (issuesCount ? "نیازمند تکمیل" : "فعال و آماده") : "خاموش"}</Badge>}>
+              <ol className="grid gap-2 text-[11px] leading-6 tdim">
+                {doc.steps.map((step, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span className="grid size-5 shrink-0 place-items-center rounded-full bg-brand-500/15 text-[10px] font-black text-brand-300">{fa(i + 1)}</span>
+                    <span dir="auto" className="break-words">{step}</span>
+                  </li>
+                ))}
+              </ol>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                {doc.links.map((link) => (
+                  <a key={link.href} href={link.href} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-brand-300 hover:underline">
+                    {link.label} ↗
+                  </a>
+                ))}
+                <button onClick={() => setSelectedId(gw.id)} className="ms-auto btn btn-ghost px-3 py-1.5 text-[11px]">تنظیمات این درگاه</button>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[

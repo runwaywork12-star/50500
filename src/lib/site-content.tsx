@@ -11,11 +11,13 @@ const KEY = "50500_content_v1";
 
 export type HeroLink = { label: string; href: string };
 
+import { pushSetting } from "./api";
+
 export const HERO_LINK_OPTIONS: HeroLink[] = [
   { label: "جستجوی خودرو (پایین صفحه)", href: "#car-finder" },
   { label: "صفحه همه محصولات", href: "/products" },
   { label: "فقط کفپوش‌ها", href: "/products?category=embroidered-leather" },
-  { label: "فقط لوازم جانبی", href: "/products?category=accessories" },
+  { label: "فقط کفپوش اختصاصی", href: "/products" },
   { label: "پیشنهادهای ویژه", href: "/products?discounted=1&sort=discount" },
   { label: "تماس با ما", href: "/contact" },
   { label: "درباره ما", href: "/about" },
@@ -58,6 +60,14 @@ export type SiteContent = {
     blog: { eyebrow: string; title: string; desc: string };
   };
   footer: { about: string; copyright: string; note: string };
+  /** Which leather / thread colours the shop currently offers. */
+  matOptions: { disabledLeather: string[]; disabledThread: string[] };
+  /** Editable texts for every storefront page, keyed by page id then field key. */
+  pageContent: Record<string, Record<string, string>>;
+  /** Editable image slots, keyed by slot id (e.g. "about.cover"). */
+  imageSlots: Record<string, { src: string; alt: string }>;
+  /** Blog article overrides, keyed by slug. */
+  articles: Record<string, { title?: string; excerpt?: string; body?: string[]; image?: string }>;
 };
 
 export const DEFAULT_CONTENT: SiteContent = {
@@ -68,7 +78,7 @@ export const DEFAULT_CONTENT: SiteContent = {
   contact: {
     phone: "۰۲۱-۹۱۰۵۰۵۰۰",
     phoneHref: "tel:+982191050500",
-    email: "info@store50500.ir",
+    email: "info@50500.shop",
     address: "تهران، بزرگراه جلال آل‌احمد، دفتر فروش 50500",
     hours: "شنبه تا پنجشنبه، ۹ صبح تا ۸ شب",
   },
@@ -108,18 +118,44 @@ export const DEFAULT_CONTENT: SiteContent = {
     blog: { eyebrow: "مجله 50500", title: "خواندنی‌های دنیای خودرو", desc: "راهنما، مقایسه و نکات نگهداری کفپوش و روکش چرمی" },
   },
   footer: {
-    about: "فروشگاه 50500؛ محصولات تخصصی خودرو با مشخصات شفاف و امکان انتخاب متناسب با خودروی شما.",
-    copyright: "تمامی حقوق برای فروشگاه 50500 محفوظ است.",
+    about: "فروشگاه 50500.shop؛ محصولات تخصصی خودرو با مشخصات شفاف و امکان انتخاب متناسب با خودروی شما.",
+    copyright: "تمامی حقوق برای 50500.shop محفوظ است.",
     note: "ساخته‌شده با عشق به خودرو 🧡",
   },
+  pageContent: {},
+  imageSlots: {},
+  articles: {},
+  matOptions: { disabledLeather: [], disabledThread: [] },
 };
+
+/** Older saves used «فروشگاه 50500» and info@store50500.ir — keep the other
+ *  values the owner edited, but correct the brand name once on load. */
+export function rebrandText(value: string): string {
+  return value
+    .replace(/info@store50500\.ir/gi, "info@50500.shop")
+    .replace(/فروشگاه ۵۰۵۰۰/gi, "50500.shop")
+    .replace(/فروشگاه 50500/gi, "50500.shop")
+    .replace(/50500\.co\b/gi, "50500.shop");
+}
+
+function rebrandContent(c: SiteContent): SiteContent {
+  return {
+    ...c,
+    contact: { ...c.contact, email: rebrandText(c.contact.email) },
+    footer: {
+      about: rebrandText(c.footer.about),
+      copyright: rebrandText(c.footer.copyright),
+      note: rebrandText(c.footer.note),
+    },
+  };
+}
 
 export function loadSiteContent(): SiteContent {
   try {
     const raw = typeof window !== "undefined" ? localStorage.getItem(KEY) : null;
     if (!raw) return DEFAULT_CONTENT;
     const parsed = JSON.parse(raw) as Partial<SiteContent>;
-    return {
+    const merged = {
       ...DEFAULT_CONTENT,
       ...parsed,
       promoBar: { ...DEFAULT_CONTENT.promoBar, ...(parsed.promoBar ?? {}) },
@@ -134,13 +170,22 @@ export function loadSiteContent(): SiteContent {
       },
       footer: { ...DEFAULT_CONTENT.footer, ...(parsed.footer ?? {}) },
       trust: parsed.trust?.length === 4 ? parsed.trust : DEFAULT_CONTENT.trust,
+      pageContent: parsed.pageContent ?? {},
+      imageSlots: parsed.imageSlots ?? {},
+      articles: parsed.articles ?? {},
+      matOptions: {
+        disabledLeather: Array.isArray(parsed.matOptions?.disabledLeather) ? parsed.matOptions.disabledLeather : [],
+        disabledThread: Array.isArray(parsed.matOptions?.disabledThread) ? parsed.matOptions.disabledThread : [],
+      },
     };
+    return rebrandContent(merged);
   } catch {
     return DEFAULT_CONTENT;
   }
 }
 
 export function saveSiteContent(content: SiteContent) {
+  pushSetting("site_content", content);
   try {
     localStorage.setItem(KEY, JSON.stringify(content));
   } catch {
@@ -154,6 +199,11 @@ export function resetSiteContent() {
   } catch {
     /* ignore */
   }
+}
+
+/** Publishes the full content document (used by the CMS editors). */
+export async function publishSiteContent(next: SiteContent): Promise<void> {
+  saveSiteContent(next);
 }
 
 /** Every image already embedded in the bundle — the panel's media library. */

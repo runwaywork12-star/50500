@@ -1,8 +1,8 @@
-import { ArrowLeft, CarFront, Layers3 } from "lucide-react";
+import { ArrowLeft, CarFront } from "lucide-react";
 import { ThemeLink as Link } from "@/components/ThemeLink";
 import { CarFinder, type FinderBrand } from "@/components/store/CarFinder";
+import { HeroSlider } from "@/components/store/HeroSlider";
 import { fa } from "@/lib/format";
-import { img } from "@/lib/images";
 import { useSiteContent } from "@/lib/site-content";
 import styles from "./HomeHeroMobile.module.css";
 
@@ -28,30 +28,36 @@ export function HomeHero({
 
       <div className={styles.hero} data-testid="mobile-home-hero">
         <div className={styles.visual}>
-          <img className={styles.image} src={img(hero.image)} alt={hero.imageAlt} fetchPriority="high" />
+          <HeroSlider variant="mobile" />
           <span className={styles.imageBlend} aria-hidden="true" />
+          <span className={styles.visualBadge}>
+            <CarFront className="size-3.5" aria-hidden="true" /> {hero.eyebrow}
+          </span>
         </div>
         <div className={styles.content}>
-          <p className={styles.brand} dir="ltr">50500<span>.co</span></p>
           <h1 className={styles.heading}>
             {hero.titleLine1} <span className={styles.highlight}>{hero.titleHighlight}</span> {hero.titleLine2}
           </h1>
           <p className={styles.description}>{hero.description}</p>
-          {hero.primary.href === "#car-finder" ? (
-            <button type="button" className={styles.primary} onClick={showFinder}>
-              {hero.primary.label} <ArrowLeft size={19} aria-hidden="true" />
-            </button>
-          ) : (
-            <Link href={hero.primary.href} className={styles.primary}>
-              {hero.primary.label} <ArrowLeft size={19} aria-hidden="true" />
-            </Link>
-          )}
+          <div className={styles.actions}>
+            {hero.primary.href === "#car-finder" ? (
+              <button type="button" className={styles.primary} onClick={showFinder}>
+                {hero.primary.label} <ArrowLeft size={19} aria-hidden="true" />
+              </button>
+            ) : (
+              <Link href={hero.primary.href} className={styles.primary}>
+                {hero.primary.label} <ArrowLeft size={19} aria-hidden="true" />
+              </Link>
+            )}
+          </div>
+          <p className={styles.meta}>
+            <span className={styles.metaDot} aria-hidden="true" /> {fa(modelCount)} مدل خودرو پوشش دارد
+          </p>
         </div>
       </div>
 
-      <div className="relative mx-auto hidden min-h-[unset] max-w-[1920px] items-center gap-0 px-4 pb-4 pt-4 sm:px-6 sm:pb-5 sm:pt-5 md:grid lg:min-h-[390px] lg:grid-cols-2 lg:px-0 lg:py-0 xl:min-h-[410px]">
-        {/* Copy intentionally sits on the right for the Persian RTL layout. */}
-        <div className="relative z-10 order-1 py-1 sm:px-4 lg:px-8 lg:py-5 xl:px-12 2xl:px-16">
+      <div className="relative mx-auto hidden min-h-[unset] w-full items-center gap-0 px-4 pb-4 pt-4 sm:px-6 sm:pb-5 sm:pt-5 lg:grid lg:min-h-[390px] lg:grid-cols-2 lg:px-0 lg:py-0 xl:min-h-[410px]">
+        <div className="home-hero-copy relative z-10 order-1 py-1 sm:px-4 lg:px-8 lg:py-5 xl:px-12 2xl:px-16">
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-2 rounded-full border border-brand-500/35 bg-brand-500/10 px-4 py-2 text-xs font-bold text-brand-200">
               <CarFront className="size-4" /> {hero.eyebrow}
@@ -72,19 +78,12 @@ export function HomeHero({
             <Link href={hero.primary.href} className="btn btn-primary shine justify-center px-5 py-3 text-sm sm:text-sm">
               {hero.primary.label} <ArrowLeft className="size-5" />
             </Link>
-            <Link href={hero.secondary.href} className="btn btn-ghost justify-center px-5 py-3 text-sm backdrop-blur sm:text-sm">
-              {hero.secondary.label} <Layers3 className="size-4" />
-            </Link>
           </div>
         </div>
 
-        {/* Hero image on desktop and mobile */}
-        <div className="home-hero-image pointer-events-none absolute inset-y-0 left-0 w-[68%] overflow-hidden opacity-20 sm:w-[64%] sm:opacity-30 lg:w-[52%] lg:opacity-100">
-          <img
-            src={img(hero.image)}
-            alt={hero.imageAlt}
-            className="h-full w-full object-cover object-center"
-          />
+        {/* Full-bleed desktop hero image slider */}
+        <div className="home-hero-image absolute inset-0 overflow-hidden">
+          <HeroSlider variant="desktop" />
           <div aria-hidden="true" className="home-hero-image-overlay pointer-events-none absolute inset-0" />
         </div>
       </div>
