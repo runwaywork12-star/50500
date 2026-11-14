@@ -22,10 +22,14 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { useAuth, emailIssue, normalizePhone, passwordIssue, phoneIssue } from "@/lib/auth.tsx";
+import { verifyAdminPassword } from "@/lib/admin";
+import { api, isServerMode, setAdminSession } from "@/lib/api";
 import { findOrders, useCart } from "@/lib/cart";
 import { ORDER_STATUSES } from "@/data/content";
 import { img } from "@/lib/images";
 import { cn, fa, money } from "@/lib/format";
+
+const ADMIN_EMAILS = new Set(["ceo@50500.shop", "admin@50500.shop", "amir@50500.shop", "info@50500.shop"]);
 
 /* ------------------------------------------------------------------ *
  * Storefront auth: /login · /register · /forgot · /account
@@ -154,14 +158,14 @@ function Field({
 
 function AuthShell({ children, mode }: { children: ReactNode; mode: "login" | "register" | "forgot" }) {
   return (
-    <div className="auth-shell grid lg:min-h-[calc(100vh-120px)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+    <div className="auth-shell relative grid overflow-hidden lg:min-h-[calc(100vh-112px)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
       {/* form column — right side in RTL */}
-      <div className="flex items-center justify-center px-4 py-7 sm:px-8 sm:py-9 lg:py-10">
+      <div className="relative z-10 flex items-center justify-center px-4 py-8 sm:px-8 sm:py-12 lg:py-16">
         <div className="w-full max-w-md">{children}</div>
       </div>
 
       {/* brand column — left side in RTL */}
-      <div className="auth-brand-panel relative hidden overflow-hidden border-e bd lg:block">
+      <div className="auth-brand-panel relative hidden min-h-full overflow-hidden lg:block">
         <img
           src={img("images/hero-mat.webp")}
           alt=""
@@ -170,14 +174,29 @@ function AuthShell({ children, mode }: { children: ReactNode; mode: "login" | "r
         />
         <div className="absolute inset-0 bg-linear-to-l from-black/85 via-black/55 to-black/70" />
         <div className="stitch-bg absolute inset-0 opacity-25" />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 start-0 z-[1] w-48"
+          style={{ background: "linear-gradient(to left, var(--bg) 0%, color-mix(in srgb, var(--bg) 55%, transparent) 45%, transparent 100%)" }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-24"
+          style={{ background: "linear-gradient(to bottom, var(--bg), transparent)" }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-24"
+          style={{ background: "linear-gradient(to top, var(--bg), transparent)" }}
+        />
 
-        <div className="auth-brand-content relative flex h-full flex-col justify-between p-10 xl:p-14">
+        <div className="auth-brand-content relative z-[2] flex h-full min-h-[calc(100vh-112px)] flex-col justify-between p-10 xl:p-14">
           <Logo />
 
           <div className="max-w-md">
             <p className="text-[11px] font-black tracking-[.3em] text-brand-300">50500 ACCOUNT</p>
             <h2 className="mt-4 text-3xl font-black leading-[1.6] text-white xl:text-4xl">
-              حساب کاربری <span className="text-gradient">50500</span>
+              حساب کاربری <span className="text-gradient font-english">50500</span>
               <br />
               سفارش‌ها و رهگیری‌هایت در یک جا
             </h2>
@@ -189,7 +208,7 @@ function AuthShell({ children, mode }: { children: ReactNode; mode: "login" | "r
               {[
                 { icon: ShieldCheck, title: "۱۲ ماه گارانتی واقعی", desc: "تعویض بدون قید و شرط محصولات 50500" },
                 { icon: Truck, title: "رهگیری لحظه‌ای سفارش", desc: "از تولید تا تحویل، وضعیت سفارش روشن است" },
-                { icon: Palette, title: "ذخیره ترکیب رنگ دلخواه", desc: "۶ رنگ چرم و ۸ رنگ نخ گلدوزی" },
+                { icon: Palette, title: "ذخیره ترکیب رنگ دلخواه", desc: "رنگ‌های چرم و نخ گلدوزی، همیشه در دسترس" },
               ].map((b) => (
                 <li key={b.title} className="flex items-start gap-3.5">
                   <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-brand-500/35 bg-brand-500/15 text-brand-300 backdrop-blur">
@@ -250,24 +269,88 @@ export function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [totp, setTotp] = useState("");
+  const [needTotp, setNeedTotp] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; form?: string }>({});
 
-  const submit = () => {
+  const submit = async () => {
+    if (busy) return;
     const next: typeof errors = {};
+    const normalizedEmail = email.trim().toLowerCase();
     const emailErr = emailIssue(email);
     if (emailErr) next.email = emailErr;
     if (!password) next.password = "رمز عبور را وارد کنید.";
+    if (needTotp && !/^\d{6}$/.test(totp)) next.form = "کد ۶ رقمی برنامه احراز هویت را وارد کنید.";
     if (Object.keys(next).length) return setErrors(next);
-    const res = login(email, password);
-    if (!res.ok) return setErrors({ form: res.error });
-    navigate(from, { replace: true });
+
+    setBusy(true);
+    try {
+      const isAdminEmail = ADMIN_EMAILS.has(normalizedEmail);
+
+      // 1) Server mode: try customer login first (unless admin email or TOTP step), then admin login
+      if (isServerMode()) {
+        if (!isAdminEmail && !needTotp) {
+          const customerRes = login(email, password);
+          if (customerRes.ok) {
+            navigate(from.startsWith("/admin") ? "/account" : from, { replace: true });
+            return;
+          }
+        }
+        const adminRes = await api<{ needTotp?: boolean }>("/api/admin/login", {
+          method: "POST",
+          body: { email: isAdminEmail ? "owner" : normalizedEmail, password, ...(needTotp ? { totp } : {}) },
+        });
+        if (adminRes?.needTotp) {
+          setNeedTotp(true);
+          setErrors({ form: "ورود دومرحله‌ای فعال است؛ کد ۶ رقمی برنامه احراز هویت را وارد کنید." });
+          return;
+        }
+        setAdminSession(true);
+        try {
+          sessionStorage.setItem("50500_admin_auth", String(Date.now()));
+        } catch {
+          /* ignore */
+        }
+        navigate("/admin", { replace: true });
+        return;
+      }
+
+      // 2) Browser mode: if admin email OR admin password matches, route straight to /admin
+      if (isAdminEmail || (await verifyAdminPassword(password))) {
+        if (!(await verifyAdminPassword(password))) {
+          setErrors({ form: "ایمیل یا رمز عبور مدیر نادرست است." });
+          return;
+        }
+        try {
+          sessionStorage.setItem("50500_admin_auth", String(Date.now()));
+        } catch {
+          setErrors({ form: "ذخیره نشست ورود در این مرورگر ممکن نیست." });
+          return;
+        }
+        navigate("/admin", { replace: true });
+        return;
+      }
+
+      // 3) Regular customer login
+      const res = login(email, password);
+      if (!res.ok) {
+        setErrors({ form: res.error });
+        return;
+      }
+      navigate(from.startsWith("/admin") ? "/account" : from, { replace: true });
+    } catch (err) {
+      setErrors({ form: err instanceof Error ? err.message : "ورود انجام نشد." });
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <AuthShell mode="login">
       <FormShell
         title="ورود به حساب کاربری"
-        subtitle="برای رهگیری سفارش‌ها و سریع‌تر خرید کردن وارد شوید."
+        subtitle="برای رهگیری سفارش‌ها وارد شوید؛ ورود مدیران هم از همین فرم انجام می‌شود."
         footer={
           <>
             حساب ندارید؟{" "}
@@ -278,8 +361,21 @@ export function Login() {
         {notice && <p className="rounded-xl bg-emerald-500/10 px-3 py-2.5 text-xs font-bold text-emerald-400">{notice}</p>}
         {errors.form && <p className="rounded-xl bg-rose-500/10 px-3 py-2.5 text-xs font-bold text-rose-400">{errors.form}</p>}
 
-        <Field id="login-email" label="ایمیل" value={email} onChange={(v) => { setEmail(v); setErrors({}); }} error={errors.email} dir="ltr" inputMode="email" autoComplete="email" placeholder="name@mail.com" icon={<Mail className="size-4" />} />
+        <Field id="login-email" label="ایمیل" value={email} onChange={(v) => { setEmail(v); setErrors({}); setNeedTotp(false); }} error={errors.email} dir="ltr" inputMode="email" autoComplete="username" placeholder="name@mail.com" icon={<Mail className="size-4" />} />
         <PasswordField id="login-pass" label="رمز عبور" value={password} onChange={(v) => { setPassword(v); setErrors({}); }} autoComplete="current-password" hint={errors.password} />
+        {needTotp && (
+          <Field
+            id="login-totp"
+            label="کد ورود دومرحله‌ای"
+            value={totp}
+            onChange={(v) => { setTotp(v.replace(/\D/g, "").slice(0, 6)); setErrors({}); }}
+            dir="ltr"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder="123456"
+            icon={<Fingerprint className="size-4" />}
+          />
+        )}
 
         <div className="flex items-center justify-between">
           <Link to="/forgot" className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-300 hover:underline">
@@ -288,9 +384,12 @@ export function Login() {
           <span className="text-[10px] tfaint">با ایمیل + رمز وارد می‌شوید</span>
         </div>
 
-        <button type="button" onClick={submit} className="btn btn-primary shine w-full py-3.5 text-sm">
-          <Lock className="size-4" /> ورود به حساب
+        <button type="button" onClick={() => void submit()} disabled={busy} className="btn btn-primary shine w-full py-3.5 text-sm disabled:opacity-60">
+          <Lock className="size-4" /> {busy ? "در حال بررسی…" : "ورود به حساب"}
         </button>
+        <p className="text-center text-[10px] leading-5 tfaint">
+          پنل مدیریت مسیر ورود جداگانه ندارد؛ دسترسی بر اساس حساب شما تشخیص داده می‌شود.
+        </p>
       </FormShell>
     </AuthShell>
   );

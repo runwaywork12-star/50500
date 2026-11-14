@@ -529,7 +529,7 @@ export const DEMO_ORDERS = [
 
 export const SITE = {
  name: "50500.shop",
- phone: "۰۲۱-۹۱۰50500",
+ phone: "۰۲۱-۹۱۰۵۰۵۰۰",
  phoneHref: "tel:+982191050500",
  email: "info@50500.shop",
  address: "تهران، بزرگراه جلال آل‌احمد، دفتر فروش 50500",

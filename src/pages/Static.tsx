@@ -5,7 +5,6 @@ import {
  Award,
  BadgeCheck,
  Clock,
- Factory,
  Mail,
  MapPin,
  Phone,
@@ -29,15 +28,15 @@ export function About() {
   { icon: Ruler, value: `+${fa(modelCount())}`, label: "مدل خودرو با قالب اختصاصی" },
   { icon: Users, value: "+۱۲۰۰۰", label: "مشتری راضی در سراسر ایران" },
   { icon: ShieldCheck, value: "۱۲ ماه", label: "گارانتی تعویض بی‌قیدوشرط" },
-  { icon: Award, value: " pioneered", label: "اولین تولیدکننده کفپوش گلدوزی ۵ بعدی" },
+  { icon: Award, value: "پیشگام", label: "اولین تولیدکننده کفپوش گلدوزی پنج‌بعدی" },
  ];
  return (
   <>
    <PageHero
     eyebrow="درباره 50500"
     title={<>تولیدکننده تخصصی <span className="text-gradient">کفپوش چرمی گلدوزی</span> خودرو</>}
-    desc={about.intro || "از سال ۱۳۵ در کارگاه 50500، کفپوش هر خودرو را با اسکن سه‌بعدی قالب، به‌صورت اختصاصی می‌دوزیم و گلدوزی می‌کنیم."}
-   />
+     desc={about.intro || "از سال ۱۳۹۰ در کارگاه 50500، کفپوش هر خودرو را با اسکن سه‌بعدی قالب، به‌صورت اختصاصی می‌دوزیم و گلدوزی می‌کنیم."}
+    />
    <div className="container-x py-12 lg:py-16">
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
      {stats.map((s) => (
@@ -51,12 +50,16 @@ export function About() {
      ))}
     </div>
 
-    <div className="mt-12 grid items-center gap-10 lg:grid-cols-2">
-     <div>
-      <img src={aboutCover} alt="کارگاه 50500" className="w-full rounded-[2rem] border bd object-cover" />
-     </div>
-     <div>
-      <h2 className="text-2xl font-black leading-10 sm:text-3xl">داستان ما از یک کارگاه کوچک شروع شد</h2>
+     <div className="mt-12 grid items-center gap-10 lg:grid-cols-2">
+      <div className="relative order-2 lg:order-1">
+       <img src={aboutCover} alt="کارگاه 50500" loading="lazy" decoding="async" className="aspect-[4/3] w-full rounded-[2rem] border bd object-cover lg:aspect-[5/4] lg:max-h-[430px]" />
+       <div className="absolute bottom-4 end-4 rounded-2xl border border-white/15 bg-black/45 px-4 py-2.5 backdrop-blur">
+        <p className="text-[11px] font-black text-white">کارگاه اختصاصی 50500</p>
+        <p className="mt-0.5 text-[10px] text-white/70">تهران، جاده مخصوص</p>
+       </div>
+      </div>
+      <div className="order-1 lg:order-2">
+       <h2 className="text-2xl font-black leading-10 sm:text-3xl">داستان ما از یک کارگاه کوچک شروع شد</h2>
       <div className="mt-5 grid gap-4 text-sm leading-8 tdim">
        <p>{about.story1 || "بنیان‌گذاران 50500 با این باور که کفپوش باید کاملاً اختصاصی باشد کار را شروع کردند. امروز با دستگاه اسکن سه‌بعدی، قالب بیش از " + fa(modelCount()) + " مدل خودرو را در آرشیو داریم."}</p>
        <p>{about.story2 || "همه محصولات در کارگاه خودمان دوخته می‌شوند: رویه چرمی، فوم ۹ میلی‌متری، پارچه جودون و گلدوزی دستی با نخ‌های رنگی — با هولوگرام اصالت و ۱۲ ماه گارانتی."}</p>
@@ -143,12 +146,12 @@ export function Contact() {
        </form>
       )}
      </div>
-     <div className="relative min-h-[320px] overflow-hidden rounded-[2rem] border bd" style={{ background: "var(--muted-surface)" }}>
-      <img src={contactCover} alt="فروشگاه 50500" className="absolute inset-0 h-full w-full object-cover opacity-70" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-      <div className="absolute bottom-0 end-0 start-0 p-8">
-       <p className="flex items-center gap-2 text-sm font-black text-white"><Factory className="size-5 text-brand-400" /> showroom و دفتر فروش</p>
-       <p className="mt-2 max-w-md text-sm leading-7 text-white/80">{SITE.address} — {SITE.hours}</p>
+     <div className="contact-showroom relative flex min-h-[320px] flex-col justify-end overflow-hidden rounded-[2rem] border bd lg:min-h-0" style={{ background: "var(--muted-surface)" }}>
+      <img src={contactCover} alt="دفتر فروش 50500" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
+      <div className="contact-showroom-shade absolute inset-0" />
+      <div className="relative m-4 rounded-[1.4rem] border bd p-5 sm:m-5" style={{ background: "var(--surface-1)" }}>
+       <p className="flex items-center gap-2 text-sm font-black"><MapPin className="size-5 text-brand-500" /> شوروم و دفتر فروش</p>
+       <p className="mt-2 text-xs leading-7 tdim sm:text-sm">{SITE.address} — {SITE.hours}</p>
       </div>
      </div>
     </div>

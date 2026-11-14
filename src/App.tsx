@@ -15,7 +15,7 @@ import Products from "@/pages/Products";
 import ProductDetail from "@/pages/ProductDetail";
 import Cart from "@/pages/Cart";
 import Checkout from "@/pages/Checkout";
-import { OrderPage, PayPage } from "@/pages/Order";
+import { OrderPage, PayCallback, PayPage } from "@/pages/Order";
 import Track from "@/pages/Track";
 import { About, Contact, NotFound } from "@/pages/Static";
 import { Blog, BlogPost } from "@/pages/Blog";
@@ -118,6 +118,7 @@ function Storefront() {
               <Route path="/cart" element={<Cart />} />
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/order/:code" element={<OrderPage />} />
+              <Route path="/pay/callback" element={<PayCallback />} />
               <Route path="/pay/:code" element={<PayPage />} />
               <Route path="/track" element={<Track />} />
               <Route path="/about" element={<About />} />

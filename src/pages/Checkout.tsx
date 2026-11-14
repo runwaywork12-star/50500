@@ -167,7 +167,7 @@ export default function Checkout() {
        <ul className="mt-4 grid max-h-64 gap-3 overflow-y-auto pe-1">
         {detailed.map((x) => (
          <li key={`${x.slug}-${x.leather ?? ""}`} className="flex items-center gap-3 text-sm">
-          <img src={x.product.image} alt="" className="size-12 shrink-0 rounded-xl object-cover" style={{ background: "var(--muted-surface)" }} />
+          <img src={x.product.image} alt="" loading="lazy" decoding="async" className="size-12 shrink-0 rounded-xl object-cover" style={{ background: "var(--muted-surface)" }} />
           <span className="min-w-0 flex-1">
            <span className="block truncate font-bold">{x.product.title}</span>
            <span className="text-xs tfaint">× {fa(x.qty)}</span>

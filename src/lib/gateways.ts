@@ -1,109 +1,99 @@
-import { getSecret, type GatewayConfig, type GatewayId } from "./control-center";
-import md5 from "blueimp-md5";
+import type { GatewayConfig, GatewayId } from "./control-center";
 
 /* ------------------------------------------------------------------ *
- * Real payment-gateway start handlers, following each provider's
- * public Web Service documentation:
+ * Payment-gateway handlers.
  *
- *  • Zarinpal (zap.ir): POST /apiv2 {amount(IRT), description,
- *    refundUrl, callbackUrl, merchantId} → {authority, trackableId}
- *    then redirect to ibp.zarinpal.com/pg/StartPay/{authority}.
- *    Sandbox host: sandbox.zap.ir.
+ *  • Zarinpal — current REST API (v4, zarinpal.com/docs):
+ *      POST …/pg/v4/payment/request.json  → data.authority
+ *      redirect to …/pg/StartPay/{authority}
+ *      after the bank returns (?Authority=…&Status=OK) →
+ *      POST …/pg/v4/payment/verify.json   → data.code 100 | 101
+ *    Amounts are sent with currency "IRT" (تومان).
  *
- *  • Bank Mellat — Pay Iran (Web Service): SOAP-ish XML
- *    PaymentStartRequest to bpm.shaparak.ir/PgwBand/StartPay with
- *    Amount, MerchantID, TerminalID, UserName, Password,
- *    MD5("UserName:Password"), VerNumber, ReferenceID.
- *    On success (Result=100) the shopper is redirected to
- *    bpm.shaparak.ir/PgwBand/StartPay/Track/{PaymentId}.
- *
- *  The merchant callback receives the bank's payment result
- *  (Zarinpal: Status/Authority/MerchantId/TrNumber — Mellat:
- *  PaymentResultNotification with Result/PaymentId/RefNum/Amount).
+ *  • Bank Mellat (Pay Iran) — PaymentStartRequest must be signed with the
+ *    web-service password and called server-to-server. A browser cannot
+ *    make that call safely (password exposure + CORS), so it is only
+ *    reachable through the 50500 API server (server/src).
  * ------------------------------------------------------------------ */
-
-function xmlEscape(s: string): string {
-  return s.replace(/[<>&'"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" })[c] as string);
-}
 
 export type StartPayResult = { url: string; reference?: string };
 
-/** Zarinpal — start payment per zap.ir/apiv2 docs. Amount is in IRT (تومان). */
+const ZARINPAL_API = { live: "https://payment.zarinpal.com/pg/v4/payment", sandbox: "https://sandbox.zarinpal.com/pg/v4/payment" };
+const ZARINPAL_START = { live: "https://www.zarinpal.com/pg/StartPay", sandbox: "https://sandbox.zarinpal.com/pg/StartPay" };
+
+type ZarinpalEnvelope = { data?: { code?: number; message?: string; authority?: string; ref_id?: number | string }; errors?: unknown };
+
+async function zarinpalPost(url: string, body: Record<string, unknown>): Promise<ZarinpalEnvelope> {
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error("اتصال به زرین‌پال برقرار نشد. این درگاه باید از طریق سرور 50500 فراخوانی شود.");
+  }
+  const json = (await res.json().catch(() => ({}))) as ZarinpalEnvelope;
+  return json;
+}
+
+/** Zarinpal v4 — start payment. `amountIRT` is in تومان. */
 export async function zarinpalStartPay(opts: {
   merchantId: string;
   amountIRT: number;
   sandbox?: boolean;
   callbackUrl?: string;
-  refundUrl?: string;
   description?: string;
+  orderCode?: string;
 }): Promise<StartPayResult> {
-  if (!opts.merchantId.trim()) throw new Error("مرچنت کد زرین‌پال در پنل مدیریت ثبت نشده است.");
-  const apiHost = opts.sandbox ? "https://sandbox.zap.ir" : "https://zap.ir";
-  const payHost = opts.sandbox ? "https://sandbox.zap.ir/pg/StartPay" : "https://ibp.zarinpal.com/pg/StartPay";
-  const res = await fetch(`${apiHost}/apiv2`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      amount: Math.round(opts.amountIRT),
-      description: opts.description ?? "سفارش 50500.shop",
-      refundUrl: opts.refundUrl ?? `${window.location.origin}/#/`,
-      callbackUrl: opts.callbackUrl ?? `${window.location.origin}/#/pay/callback`,
-      merchantId: opts.merchantId.trim(),
-    }),
+  const merchantId = opts.merchantId.trim();
+  if (!merchantId) throw new Error("مرچنت کد زرین‌پال در پنل مدیریت ثبت نشده است.");
+  const base = opts.sandbox ? ZARINPAL_API.sandbox : ZARINPAL_API.live;
+  const json = await zarinpalPost(`${base}/request.json`, {
+    merchant_id: merchantId,
+    amount: Math.round(opts.amountIRT),
+    currency: "IRT",
+    description: opts.description ?? "سفارش 50500.shop",
+    callback_url: opts.callbackUrl ?? `${window.location.origin}/#/pay/callback`,
+    metadata: opts.orderCode ? { order_id: opts.orderCode } : {},
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data.authority) {
-    throw new Error(data?.message?.fa || data?.error || `درخواست به درگاه زرین‌پال ناموفق بود (HTTP ${res.status})`);
+  const authority = json.data?.authority;
+  if (json.data?.code !== 100 || !authority) {
+    const reason = json.data?.message ?? (Array.isArray(json.errors) && json.errors.length ? "خطای زرین‌پال" : "پاسخ نامعتبر");
+    throw new Error(`درخواست پرداخت زرین‌پال ناموفق بود: ${reason}`);
   }
-  return { url: `${payHost}/${data.authority}`, reference: String(data.authority) };
+  return { url: `${opts.sandbox ? ZARINPAL_START.sandbox : ZARINPAL_START.live}/${authority}`, reference: authority };
 }
 
-/** Bank Mellat — Pay Iran Web Service PaymentStartRequest. Amount in IRT (تومان). */
-export async function mellatStartPay(opts: {
+/** Zarinpal v4 — verify a returned payment. Returns the bank reference on success. */
+export async function zarinpalVerify(opts: {
   merchantId: string;
-  terminalId?: string;
-  userName: string;
-  password: string;
   amountIRT: number;
-  referenceId?: string;
-}): Promise<StartPayResult> {
-  if (!opts.merchantId.trim()) throw new Error("شناسه پذیرنده (MerchantID) بانک ملت در پنل مدیریت ثبت نشده است.");
-  if (!opts.userName.trim() || !opts.password) throw new Error("نام کاربری و رمز وب‌سرویس بانک ملت در پنل مدیریت ثبت نشده است.");
-  // Docs: MD5 of "UserName:PassWord" (colon-separated) is the signature.
-  const signature = md5(`${opts.userName}:${opts.password}`);
-  const refId = opts.referenceId ?? `50500${Date.now()}`;
-  const verNumber = Date.now();
-  const xml = `<?xml version="1.0" encoding="utf-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.w3.org/2003/05/soap-envelope" xmlns:pay="http://bpm.shaparak.ir">
- <soapenv:Body>
-  <pay:PaymentStartRequest>
-   <Amount>${Math.round(opts.amountIRT)}</Amount>
-   <MerchantID>${xmlEscape(opts.merchantId.trim())}</MerchantID>
-   <TerminalID>${xmlEscape(opts.terminalId ?? "")}</TerminalID>
-   <UserName>${xmlEscape(opts.userName)}</UserName>
-   <Password>${xmlEscape(opts.password)}</Password>
-   <MD5>${signature}</MD5>
-   <VerNumber>${verNumber}</VerNumber>
-   <ReferenceID>${xmlEscape(refId)}</ReferenceID>
-  </pay:PaymentStartRequest>
- </soapenv:Body>
-</soapenv:Envelope>`;
-  const res = await fetch("https://bpm.shaparak.ir/PgwBand/StartPay", {
-    method: "POST",
-    headers: { "Content-Type": "text/xml; charset=utf-8" },
-    body: xml,
+  authority: string;
+  sandbox?: boolean;
+}): Promise<{ ok: true; refId: string } | { ok: false; error: string }> {
+  const base = opts.sandbox ? ZARINPAL_API.sandbox : ZARINPAL_API.live;
+  const json = await zarinpalPost(`${base}/verify.json`, {
+    merchant_id: opts.merchantId.trim(),
+    amount: Math.round(opts.amountIRT),
+    currency: "IRT",
+    authority: opts.authority,
   });
-  const text = await res.text();
-  const result = text.match(/<Result>([^<]*)<\/Result>/)?.[1]?.trim() ?? "";
-  const paymentId = text.match(/<PaymentId>([^<]*)<\/PaymentId>/)?.[1]?.trim() ?? "";
-  if (result !== "100" || !paymentId) {
-    throw new Error(result === "100" ? "درگاه ملت شناسه پرداخت صادر نکرد" : `درگاه بانک ملت پاسخ داد: کد ${result}`);
+  // 100 = verified now, 101 = already verified (idempotent success).
+  if (json.data?.code === 100 || json.data?.code === 101) {
+    return { ok: true, refId: String(json.data?.ref_id ?? opts.authority) };
   }
-  return { url: `https://bpm.shaparak.ir/PgwBand/StartPay/Track/${paymentId}`, reference: paymentId };
+  return { ok: false, error: json.data?.message ?? "تأیید پرداخت ناموفق بود." };
+}
+
+/** Bank Mellat — not callable from the browser (see header). */
+export async function mellatStartPay(): Promise<StartPayResult> {
+  throw new Error("پرداخت ملت باید از طریق سرور 50500 انجام شود؛ در این نسخهٔ مرورگری فعال نیست.");
 }
 
 /** Dispatches to the correct provider for an enabled gateway configuration. */
-export async function startGatewayPay(gateway: GatewayConfig, amountIRT: number): Promise<StartPayResult> {
+export async function startGatewayPay(gateway: GatewayConfig, amountIRT: number, orderCode?: string): Promise<StartPayResult> {
   const fields = gateway.fields ?? {};
   const sandbox = gateway.mode === "sandbox";
   switch (gateway.id as GatewayId) {
@@ -113,27 +103,14 @@ export async function startGatewayPay(gateway: GatewayConfig, amountIRT: number)
         amountIRT,
         sandbox,
         callbackUrl: gateway.callbackUrl || undefined,
+        orderCode,
       });
-    case "mellat": {
-      const password = getSecret(gateway.id, "password");
-      return mellatStartPay({
-        merchantId: fields.merchantId ?? "",
-        terminalId: fields.terminalId,
-        userName: fields.userName ?? "",
-        password,
-        amountIRT,
-      });
-    }
-    case "sadad":
-      throw new Error("درگاه سداد در این نسخه هنوز پیوند زنده ندارد؛ برای شروع درگاه، زرین‌پال یا پرداخت ملت را فعال کنید.");
-    case "sep":
-      throw new Error("درگاه سپ (سامان) در این نسخه هنوز پیوند زنده ندارد؛ برای شروع درگاه، زرین‌پال یا پرداخت ملت را فعال کنید.");
-    case "zibal":
-      throw new Error("درگاه زیبال در این نسخه هنوز پیوند زنده ندارد؛ برای شروع درگاه، زرین‌پال یا پرداخت ملت را فعال کنید.");
+    case "mellat":
+      return mellatStartPay();
     default:
-      throw new Error("این درگاه از شروع پرداخت آنلاین پشتیبانی نمی‌کند.");
+      throw new Error("این درگاه در نسخهٔ مرورگری پشتیبانی نمی‌شود؛ از زرین‌پال یا پرداخت کارت‌به‌کارت استفاده کنید.");
   }
 }
 
-/** Gateways that can start a live online payment from the Pay page. */
-export const LIVE_GATEWAY_IDS: GatewayId[] = ["zarinpal", "mellat"];
+/** Gateways that can start a live payment directly from the browser. */
+export const LIVE_GATEWAY_IDS: GatewayId[] = ["zarinpal"];

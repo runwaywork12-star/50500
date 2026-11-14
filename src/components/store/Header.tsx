@@ -216,7 +216,7 @@ export function Header({ theme, onToggleTheme }: { theme: "dark" | "light"; onTo
                           <div className={styles.categoryColumn}>
                             <p className={styles.overline}>انتخاب محصول</p>
                             <Link href="/products?category=embroidered-leather" className={styles.featuredLink}>
-                              <img src={img("images/products/mat-black.webp")} alt="کفپوش چرمی گلدوزی" className={styles.featureImage} />
+                              <img src={img("images/products/mat-black.webp")} alt="کفپوش چرمی گلدوزی" loading="lazy" decoding="async" className={styles.featureImage} />
                               <span className={styles.featureCopy}>
                                 <strong>کفپوش چرمی گلدوزی</strong>
                                 <small>{fa(modelCount)} مدل خودرو · رنگ‌بندی دلخواه</small>
@@ -240,7 +240,7 @@ export function Header({ theme, onToggleTheme }: { theme: "dark" | "light"; onTo
                               })}
                             </div>
                             <Link href="/products" className={styles.accessoryLink}>
-                              <img src={img("images/showcase/card-front-mat.jpg")} alt="" className={styles.accessoryImage} />
+                              <img src={img("images/showcase/card-front-mat.jpg")} alt="" loading="lazy" decoding="async" className={styles.accessoryImage} />
                               <span>کفپوش اختصاصی خودرو</span>
                               <ChevronLeft className={styles.arrow} />
                             </Link>
@@ -415,7 +415,7 @@ export function Header({ theme, onToggleTheme }: { theme: "dark" | "light"; onTo
                 return (
                   <Link key={g.id} href={`/products?group=${g.id}`} onClick={() => setMenuOpen(false)} className="flex items-center gap-3 rounded-2xl border bd p-2.5 transition soft-h">
                     <span className="size-11 shrink-0 overflow-hidden rounded-xl" style={{ background: "var(--muted-surface)" }}>
-                      <img src={g.image} alt="" className="size-full object-cover" />
+                      <img src={g.image} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-bold">{g.name}</span>

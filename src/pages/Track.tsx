@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, PackageSearch, Search, ShoppingBag } from "lucide-react";
 import { PageHero } from "@/components/ui";
 import { useSiteContent } from "@/lib/site-content";
@@ -15,6 +15,8 @@ export default function Track() {
  const [phone, setPhone] = useState("");
  const [result, setResult] = useState<Order | null>(null);
  const [error, setError] = useState("");
+ const [searchParams] = useSearchParams();
+ const searchError = searchParams.get("error");
 
  const recent = useMemo(() => findOrders(""), [result]); // stored orders (any) — demo list shown separately
 
@@ -47,22 +49,36 @@ export default function Track() {
     desc={trackPage.desc || "کد سفارش (۸ رقمی) و شماره موبایل خود را وارد کنید تا وضعیت سفارش را ببینید."}
    />
    <div className="container-x py-10 lg:py-14">
-    <form onSubmit={submit} className="mx-auto grid max-w-2xl gap-3 rounded-[2rem] border bd p-6 sm:grid-cols-[1fr_1fr_auto] sm:p-5" style={{ background: "var(--surface-1)" }}>
-     <input className="input" dir="ltr" inputMode="numeric" placeholder="کد سفارش — مثلاً 40001234" value={code} onChange={(e) => setCode(e.target.value.replace(/[^0-9۰-۹]/g, ""))} />
-     <input className="input" dir="ltr" inputMode="tel" placeholder="شماره موبایل — 09121234567" value={phone} onChange={(e) => setPhone(e.target.value)} />
-     <button type="submit" className="btn btn-primary px-6 py-3 text-sm whitespace-nowrap">
-      <Search className="size-4" /> رهگیری
-     </button>
+    <form onSubmit={submit} className="mx-auto max-w-4xl rounded-3xl border bd p-5 sm:p-6" style={{ background: "var(--surface-1)" }}>
+     <div className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+      <label className="grid gap-1.5">
+       <span className="text-xs font-bold tdim">کد سفارش</span>
+       <input className="input" dir="ltr" inputMode="numeric" placeholder="40001234" value={code} onChange={(e) => setCode(e.target.value.replace(/[^0-9۰-۹]/g, ""))} />
+      </label>
+      <label className="grid gap-1.5">
+       <span className="text-xs font-bold tdim">شماره موبایل</span>
+       <input className="input" dir="ltr" inputMode="tel" placeholder="09121234567" value={phone} onChange={(e) => setPhone(e.target.value)} />
+      </label>
+      <button type="submit" className="btn btn-primary h-[46px] px-7 text-sm whitespace-nowrap">
+       <Search className="size-4" /> رهگیری سفارش
+      </button>
+     </div>
     </form>
 
+    {searchError && (
+     <div className="mx-auto mt-4 max-w-4xl rounded-2xl border border-amber-400/30 bg-amber-400/10 px-5 py-4 text-sm font-bold leading-7 text-amber-300">
+      {searchError}
+     </div>
+    )}
+
     {error && (
-     <div className="mx-auto mt-6 max-w-2xl rounded-2xl border border-rose-500/30 bg-rose-500/10 px-5 py-4 text-sm font-bold text-rose-400">
+     <div className="mx-auto mt-4 max-w-4xl rounded-2xl border border-rose-500/30 bg-rose-500/10 px-5 py-4 text-sm font-bold text-rose-400">
       {error}
      </div>
     )}
 
     {result && status && (
-     <div className="mx-auto mt-8 grid max-w-4xl gap-6">
+     <div className="mx-auto mt-6 grid max-w-4xl gap-6">
       <div className="rounded-3xl border bd p-6" style={{ background: "var(--surface-1)" }}>
        <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-base font-black">

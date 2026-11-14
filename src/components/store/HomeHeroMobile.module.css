@@ -1,231 +1,78 @@
-.hero {
-  --mobile-hero-surface: #090b0f;
-  --mobile-hero-text: #f7f7f8;
-  --mobile-hero-muted: #c1c3c8;
-  overflow: hidden;
-  background: var(--mobile-hero-surface);
-  color: var(--mobile-hero-text);
+.hero{--mobile-hero-surface: #090b0f;--mobile-hero-text: #f7f7f8;--mobile-hero-muted: #c1c3c8;overflow:hidden;background:var(--mobile-hero-surface);color:var(--mobile-hero-text)}
+
+:global(.theme-light) .hero{--mobile-hero-surface: #f6f4ef;--mobile-hero-text: #17191f;--mobile-hero-muted: #555c67}
+
+.visual{position:relative;width:100%;height:clamp(190px,36svh,330px);overflow:hidden;background:#111318}
+
+.image{display:block;width:100%;height:100%;object-fit:cover;object-position:center 52%;animation:imageIn .65s ease-out both}
+
+.imageBlend{position:absolute;z-index:1;inset:45% 0 -1px;pointer-events:none;background:linear-gradient(180deg,transparent 0%,color-mix(in srgb,var(--mobile-hero-surface) 45%,transparent) 45%,color-mix(in srgb,var(--mobile-hero-surface) 85%,transparent) 78%,var(--mobile-hero-surface) 100%)}
+
+.content{position:relative;z-index:2;width:100%;max-width:560px;margin-inline:auto;margin-top:-12px;padding:0 22px 26px;text-align:right;animation:copyIn .42s ease-out both}
+
+.visualBadge{position:absolute;z-index:2;inset-inline-start:14px;inset-block-start:14px;display:inline-flex;max-width:calc(100% - 28px);align-items:center;gap:6px;padding:7px 12px;border:1px solid rgb(255 255 255 / .16);border-radius:999px;background:#090b0f9e;color:#f7f7f8;font-size:11px;font-weight:700;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-backdrop-filter:blur(10px) saturate(1.2);backdrop-filter:blur(10px) saturate(1.2);box-shadow:0 6px 20px -8px #000000b3}
+
+:global(.theme-light) .visualBadge{border-color:#17191f1f;background:#ffffffc7;color:#17191f}
+
+.visualBadge svg{flex:none;color:#f0823a}
+
+.highlight{color:#e85e14}
+
+.heading{margin:0;color:var(--mobile-hero-text);font-size:clamp(1.3rem,5.6vw,1.62rem);font-weight:850;line-height:1.5;text-wrap:balance}
+
+.description{margin:8px 0 0;max-width:520px;color:var(--mobile-hero-muted);font-size:12.5px;line-height:1.85}
+
+.actions{display:grid;gap:9px;margin-top:15px}
+
+.primary,.secondary{display:inline-flex;min-height:46px;align-items:center;justify-content:center;gap:9px;border:1px solid transparent;border-radius:12px;font-size:13.5px;font-weight:800;line-height:1.5;cursor:pointer;transition:background-color .16s ease,transform .16s ease,border-color .16s ease}
+
+.primary{padding:11px 18px;background:#c84b0d;color:#fff;box-shadow:0 10px 24px -14px #c84b0df2}
+
+.primary:hover{background:#ad3d08;transform:translateY(-1px)}
+
+.secondary{padding:11px 18px;border-color:#ffffff24;background:#ffffff0a;color:var(--mobile-hero-text)}
+
+.secondary:hover{border-color:#f0823a73;background:#f0823a14}
+
+:global(.theme-light) .secondary{border-color:#17191f1f;background:#17191f08}
+
+.primary:focus-visible,.secondary:focus-visible{outline:2px solid #f48b45;outline-offset:3px}
+
+.meta{display:flex;align-items:center;gap:7px;margin:14px 0 0;color:var(--mobile-hero-muted);font-size:11.5px;font-weight:600}
+
+.metaDot{width:5px;height:5px;border-radius:999px;background:#f0823a;box-shadow:0 0 0 3px #f0823a2e}
+
+@media(min-width:1024px){.hero{display:none}
 }
 
-:global(.theme-light) .hero {
-  --mobile-hero-surface: #f6f4ef;
-  --mobile-hero-text: #17191f;
-  --mobile-hero-muted: #555c67;
+@media(max-width:359px){.visual{height:clamp(205px,37svh,250px)}
+.content{padding-inline:16px;padding-bottom:20px}
+.heading{font-size:1.24rem}
+.description{font-size:12px}
+.actions{margin-top:12px}
+.primary,.secondary{min-height:44px;font-size:13px}
+.visualBadge{font-size:10px;padding:6px 10px}
 }
 
-.visual {
-  position: relative;
-  width: 100%;
-  height: clamp(190px, 36svh, 330px);
-  overflow: hidden;
-  background: #111318;
+@media(min-width:640px)and (max-width:1023px){.visual{height:min(46svh,430px)}
+.image{object-position:center 48%}
+.content{padding-bottom:32px}
+.heading{max-width:620px;font-size:clamp(1.7rem,4vw,2rem)}
+.description{font-size:14px}
+.actions{grid-template-columns:1fr 1fr;gap:11px}
+.primary,.secondary{min-height:50px;font-size:14.5px}
 }
 
-.image {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 52%;
-  animation: imageIn 650ms ease-out both;
+@keyframes imageIn{0%{opacity:.8;transform:scale(1.015)}
+to{opacity:1;transform:scale(1)}
 }
 
-.imageBlend {
-  position: absolute;
-  z-index: 1;
-  inset: 45% 0 -1px;
-  pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    color-mix(in srgb, var(--mobile-hero-surface) 45%, transparent) 45%,
-    color-mix(in srgb, var(--mobile-hero-surface) 85%, transparent) 78%,
-    var(--mobile-hero-surface) 100%
-  );
+@keyframes copyIn{0%{opacity:0;transform:translateY(7px)}
+to{opacity:1;transform:translateY(0)}
 }
 
-.content {
-  position: relative;
-  z-index: 2;
-  width: 100%;
-  max-width: 560px;
-  margin-inline: auto;
-  margin-top: -12px;
-  padding: 0 22px 26px;
-  text-align: right;
-  animation: copyIn 420ms ease-out both;
+@media(prefers-reduced-motion:reduce){.image,.content{animation:none}
+.primary{transition:none}
 }
 
-.visualBadge {
-  position: absolute;
-  z-index: 2;
-  inset-inline-start: 14px;
-  inset-block-start: 14px;
-  display: inline-flex;
-  max-width: calc(100% - 28px);
-  align-items: center;
-  gap: 6px;
-  padding: 7px 12px;
-  border: 1px solid rgb(255 255 255 / 0.16);
-  border-radius: 999px;
-  background: #090b0f9e;
-  color: #f7f7f8;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.4;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  -webkit-backdrop-filter: blur(10px) saturate(1.2);
-  backdrop-filter: blur(10px) saturate(1.2);
-  box-shadow: 0 6px 20px -8px #000000b3;
-}
-
-:global(.theme-light) .visualBadge {
-  border-color: #17191f1f;
-  background: #ffffffc7;
-  color: #17191f;
-}
-
-.visualBadge svg {
-  flex: none;
-  color: #f0823a;
-}
-
-.highlight {
-  color: #e85e14;
-}
-
-.heading {
-  margin: 0;
-  color: var(--mobile-hero-text);
-  font-size: clamp(1.3rem, 5.6vw, 1.62rem);
-  font-weight: 850;
-  line-height: 1.5;
-  text-wrap: balance;
-}
-
-.description {
-  margin: 8px 0 0;
-  max-width: 520px;
-  color: var(--mobile-hero-muted);
-  font-size: 12.5px;
-  line-height: 1.85;
-}
-
-.actions {
-  display: grid;
-  gap: 9px;
-  margin-top: 15px;
-}
-
-.primary,
-.secondary {
-  display: inline-flex;
-  min-height: 46px;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  font-size: 13.5px;
-  font-weight: 800;
-  line-height: 1.5;
-  cursor: pointer;
-  transition: background-color 0.16s ease, transform 0.16s ease, border-color 0.16s ease;
-}
-
-.primary {
-  padding: 11px 18px;
-  background: #c84b0d;
-  color: #fff;
-  box-shadow: 0 10px 24px -14px #c84b0df2;
-}
-
-.primary:hover {
-  background: #ad3d08;
-  transform: translateY(-1px);
-}
-
-.secondary {
-  padding: 11px 18px;
-  border-color: #ffffff24;
-  background: #ffffff0a;
-  color: var(--mobile-hero-text);
-}
-
-.secondary:hover {
-  border-color: #f0823a73;
-  background: #f0823a14;
-}
-
-:global(.theme-light) .secondary {
-  border-color: #17191f1f;
-  background: #17191f08;
-}
-
-.primary:focus-visible,
-.secondary:focus-visible {
-  outline: 2px solid #f48b45;
-  outline-offset: 3px;
-}
-
-.meta {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin: 14px 0 0;
-  color: var(--mobile-hero-muted);
-  font-size: 11.5px;
-  font-weight: 600;
-}
-
-.metaDot {
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
-  background: #f0823a;
-  box-shadow: 0 0 0 3px #f0823a2e;
-}
-
-@media (min-width: 1024px) {
-  .hero { display: none; }
-}
-
-@media (max-width: 359px) {
-  .visual { height: clamp(205px, 37svh, 250px); }
-  .content { padding-inline: 16px; padding-bottom: 20px; }
-  .heading { font-size: 1.24rem; }
-  .description { font-size: 12px; }
-  .actions { margin-top: 12px; }
-  .primary,
-  .secondary { min-height: 44px; font-size: 13px; }
-  .visualBadge { font-size: 10px; padding: 6px 10px; }
-}
-
-@media (min-width: 640px) and (max-width: 1023px) {
-  .visual { height: min(46svh, 430px); }
-  .image { object-position: center 48%; }
-  .content { padding-bottom: 32px; }
-  .heading { max-width: 620px; font-size: clamp(1.7rem, 4vw, 2rem); }
-  .description { font-size: 14px; }
-  .actions { grid-template-columns: 1fr 1fr; gap: 11px; }
-  .primary,
-  .secondary { min-height: 50px; font-size: 14.5px; }
-}
-
-@keyframes imageIn {
-  from { opacity: 0.8; transform: scale(1.015); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes copyIn {
-  from { opacity: 0; transform: translateY(7px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .image,
-  .content { animation: none; }
-  .primary { transition: none; }
-}
+:global(.theme-light) .visual{background:#efece4}

@@ -17,6 +17,8 @@ import {
 } from "@/lib/catalog";
 import { CAR_GROUPS } from "@/data/content";
 import { useSiteContent } from "@/lib/site-content";
+import { carImageFor } from "@/lib/car-images";
+import { ManagedImage } from "@/components/ManagedImage";
 import { img } from "@/lib/images";
 import { cn, fa } from "@/lib/format";
 
@@ -26,10 +28,12 @@ function CarHero({
   brand,
   model,
   total,
+  photo,
 }: {
   brand: Brand | undefined;
   model: { slug: string; name: string } | undefined;
   total: number;
+  photo?: string;
 }) {
   const title = model ? `${brand?.name ?? ""} ${model.name}` : brand ? brand.name : "";
   const hashOffset = (brand ? brand.slug.length : 0) + (model ? model.slug.length : 0);
@@ -38,7 +42,11 @@ function CarHero({
     <section className="car-hero relative overflow-hidden border-b bd">
       <div className="container-x relative grid items-center gap-6 py-8 lg:grid-cols-[400px_1fr] lg:gap-10 lg:py-10">
         <div className="car-hero-media">
-          <div className="car-hero-art" role="img" aria-label={title} dangerouslySetInnerHTML={{ __html: carArtSvg(model ? model.name : "") }} />
+          {photo ? (
+            <ManagedImage src={photo} alt={title} className="car-hero-img" />
+          ) : (
+            <div className="car-hero-art" role="img" aria-label={title} dangerouslySetInnerHTML={{ __html: carArtSvg(model ? model.name : "") }} />
+          )}
           <span className="car-hero-badge">قالب اختصاصی این خودرو</span>
         </div>
         <div className="min-w-0">
@@ -138,10 +146,10 @@ export default function Products() {
   return (
     <>
       {query.brand ? (
-        <CarHero brand={brand} model={model} total={result.total} />
+        <CarHero brand={brand} model={model} total={result.total} photo={carImageFor(content.imageSlots, brand?.slug, model?.slug)} />
       ) : (
         <section className="relative overflow-hidden border-b bd">
-          <img src={heroImage} alt="" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-20" />
+          <img src={heroImage} alt="" aria-hidden="true" fetchPriority="high" decoding="async" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-20" />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-l from-[var(--bg)] via-[var(--bg)]/85 to-[var(--bg)]/40" />
           <div className="grid-bg pointer-events-none absolute inset-0 opacity-40 [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]" />
           <div className="pointer-events-none absolute -top-32 right-1/4 h-72 w-72 rounded-full bg-brand-500/20 blur-[110px]" />

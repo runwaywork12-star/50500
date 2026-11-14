@@ -1,10 +1,9 @@
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Ruler, Palette, ShieldCheck, Package } from "lucide-react";
+import { ArrowLeft, Ruler, Palette, ShieldCheck, Package } from "lucide-react";
 import { Breadcrumbs, PageHero } from "@/components/ui";
 import { BLOG_POSTS } from "@/data/content";
 import { useSiteContent } from "@/lib/site-content";
 import { fa } from "@/lib/format";
-import { img } from "@/lib/images";
 
 const TOPIC_ICON = {
   "راهنما": Ruler,
@@ -26,86 +25,95 @@ function mergedPosts(articles: Record<string, { title?: string; excerpt?: string
 export function Blog() {
   const { content } = useSiteContent();
   const blog = content.pageContent.blog ?? {};
-  const blogCover = content.imageSlots["blog.cover"]?.src ?? img("images/workshop/sewing-machine.jpg");
   const posts = mergedPosts(content.articles);
   const [featured, ...rest] = posts;
-  const restGrid = rest.length ? rest : posts;
 
   return (
-    <>
-      <PageHero eyebrow={blog.eyebrow ?? "مجله 50500"} title={blog.title || "راهنمای کفپوش اختصاصی"} desc={blog.desc || "از انتخاب قالب تا مراقبت دوام؛ فقط درباره کفپوش چرمی گلدوزی خودرو"} />
+    <section className="container-x pb-12 pt-7 sm:pt-9 lg:pb-16">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b bd pb-5 sm:mb-8 sm:pb-6">
+        <div>
+          <p className="text-[11px] font-black tracking-[.16em] text-brand-400">{blog.eyebrow ?? "مجله 50500"}</p>
+          <h1 className="mt-2 text-2xl font-black leading-tight sm:text-3xl lg:text-4xl">{blog.title || "راهنمای کفپوش اختصاصی"}</h1>
+          <p className="mt-2 max-w-2xl text-xs leading-6 tdim sm:text-sm">{blog.desc || "از انتخاب قالب تا مراقبت دوام؛ فقط درباره کفپوش چرمی گلدوزی خودرو"}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-3 border-e-2 border-brand-500 pe-3">
+          <span className="text-2xl font-black text-brand-300">{fa(posts.length)}</span>
+          <span className="text-[11px] font-bold leading-5 tdim">
+            راهنمای تخصصی
+            <br />
+            برای انتخاب بهتر
+          </span>
+        </div>
+      </header>
 
-      <div className="container-x py-10 lg:py-14">
-        {/* featured article */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-12 xl:gap-5">
         {featured && (
-          <section className="grid gap-0 overflow-hidden rounded-[1.6rem] border bd lg:grid-cols-2" style={{ background: "var(--surface-1)" }}>
-            <Link to={`/blog/${featured.slug}`} className="group relative block aspect-[16/9] overflow-hidden lg:aspect-auto lg:min-h-[320px]">
-              <img src={featured.image} alt="" className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]" />
-              <span className="glass absolute start-3 top-3 rounded-full px-2.5 py-1 text-[10.5px] font-bold">پیشنهاد امروز</span>
-            </Link>
-            <div className="flex flex-col justify-center p-6 sm:p-8">
-              <span className="mb-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-brand-500/12 px-3 py-1 text-[11px] font-black text-brand-300">
+          <Link
+            to={`/blog/${featured.slug}`}
+            aria-label={`مطالعه مقاله: ${featured.title}`}
+            className="blog-featured group relative isolate flex min-h-[360px] flex-col justify-end overflow-hidden rounded-[1.6rem] border bd sm:col-span-2 lg:col-span-1 xl:col-span-6 xl:min-h-[455px]"
+          >
+            <img src={featured.image} alt={featured.title} loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover transition duration-700 group-hover:scale-[1.04]" />
+            <span className="blog-photo-shade absolute inset-0" />
+            <span className="glass absolute start-4 top-4 rounded-full px-3 py-1.5 text-[10px] font-bold text-white">انتخاب سردبیر</span>
+            <div className="blog-featured-copy relative mt-auto p-5 sm:p-7">
+              <span className="mb-3 inline-flex items-center gap-1.5 text-[11px] font-black text-brand-300">
                 {(() => { const I = topicIcon(featured.tag); return <I className="size-3.5" />; })()}
                 {featured.tag}
               </span>
-              <h2 className="text-xl font-black leading-8 sm:text-2xlimd:leading-[2.1rem] sm:text-[1.6rem]">{featured.title}</h2>
-              <p className="mt-2 text-sm leading-7 tdim">{featured.excerpt}</p>
-              <p className="mt-4 text-[11px] tfaint">{featured.date} · مطالعه {featured.readTime}</p>
-              <Link to={`/blog/${featured.slug}`} className="mt-5 inline-flex w-fit items-center gap-2 text-sm font-black text-brand-300 transition-all hover:gap-3">
-                ادامه مطالعه <ArrowLeft className="size-4" />
-              </Link>
+              <h2 className="max-w-2xl text-xl font-black leading-8 text-white sm:text-2xl sm:leading-9">{featured.title}</h2>
+              <p className="mt-2 line-clamp-2 max-w-2xl text-xs leading-6 text-white/75 sm:text-sm">{featured.excerpt}</p>
+              <div className="photo-divider mt-4 flex items-center justify-between gap-3 border-t pt-3 text-[11px] text-white/65">
+                <span>
+                  {featured.date} <span className="mx-1.5 text-white/35">/</span> مطالعه {featured.readTime}
+                </span>
+                <span className="inline-flex items-center gap-1.5 font-black text-brand-300 transition-all group-hover:gap-3">
+                  ادامه مطالعه <ArrowLeft className="size-4" />
+                </span>
+              </div>
             </div>
-          </section>
+          </Link>
         )}
 
-        {/* cover strip */}
-        <div className="relative mt-8 overflow-hidden rounded-[1.6rem] border bd" style={{ background: "var(--muted-surface)" }}>
-          <img src={blogCover} alt="کارگاه 50500 در حال دوخت" className="h-40 w-full object-cover sm:h-52" />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent" />
-          <div className="absolute inset-0 flex items-center p-5 sm:p-8">
-            <p className="max-w-md text-sm font-black leading-7 text-white sm:text-base">
-              هر هفته یک راهنما جدید؛ فقط روی کفپوش چرمی گلدوزی خودرو تمرکز می‌کنیم.
-            </p>
-          </div>
-        </div>
-
-        {/* grid */}
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {restGrid.map((p, i) => {
-            const I = topicIcon(p.tag);
-            return (
-              <Link key={p.slug} to={`/blog/${p.slug}`} className="group relative flex h-full flex-col overflow-hidden rounded-[1.4rem] border bd transition hover:-translate-y-1 hover:border-brand-500/45" style={{ background: "var(--surface-1)" }}>
-                <span className="relative block aspect-[16/9] overflow-hidden" style={{ background: "var(--muted-surface)" }}>
-                  <img src={p.image} alt="" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
-                  <span className="glass absolute start-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold">{p.tag}</span>
-                  <span className="absolute bottom-3 end-3 rounded-full bg-black/60 px-2 py-1 text-[10px] font-bold text-white backdrop-blur-sm">
-                    {fa(i + 1)} دقیقه مطالعه
+        {rest.map((p) => {
+          const I = topicIcon(p.tag);
+          return (
+            <Link
+              key={p.slug}
+              to={`/blog/${p.slug}`}
+              className="group flex min-h-[330px] flex-col overflow-hidden rounded-[1.6rem] border bd transition duration-300 hover:-translate-y-1 hover:border-brand-500/45 sm:min-h-[360px] lg:min-h-[440px] xl:col-span-3"
+              style={{ background: "var(--surface-1)" }}
+            >
+              <span className="relative block min-h-[150px] flex-1 overflow-hidden" style={{ background: "var(--muted-surface)" }}>
+                <img src={p.image} alt={p.title} loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover transition duration-700 group-hover:scale-105" />
+                <span className="blog-photo-shade-soft absolute inset-0" />
+                <span className="glass absolute start-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold text-white">{p.tag}</span>
+              </span>
+              <span className="flex flex-1 flex-col p-4 sm:p-5">
+                <span className="text-[10px] font-bold tfaint">
+                  {p.date} <span className="mx-1">/</span> {p.readTime}
+                </span>
+                <b className="mt-2 line-clamp-3 text-sm font-black leading-7 transition-colors group-hover:text-brand-300">{p.title}</b>
+                <span className="mt-2 line-clamp-3 text-[11px] leading-6 tdim">{p.excerpt}</span>
+                <span className="mt-auto flex items-center justify-between gap-2 border-t bd pt-3 text-[11px] font-bold text-brand-300">
+                  <span className="inline-flex items-center gap-1.5">
+                    <I className="size-3.5" /> {p.tag}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 transition-all group-hover:gap-2.5">
+                    مطالعه <ArrowLeft className="size-3.5" />
                   </span>
                 </span>
-                <div className="flex flex-1 flex-col p-4 sm:p-5">
-                  <p className="text-[10px] font-bold tfaint">{p.date} · {p.readTime}</p>
-                  <b className="mt-1.5 line-clamp-2 text-sm font-black leading-6 transition-colors group-hover:text-brand-300">{p.title}</b>
-                  <span className="mt-2 line-clamp-2 text-[11px] leading-5.5 tdim">{p.excerpt}</span>
-                  <span className="mt-auto flex items-center justify-between pt-3 text-[11px] font-bold text-brand-300">
-                    <span className="flex items-center gap-1.5">
-                      <I className="size-3.5" /> {p.tag}
-                    </span>
-                    <span className="inline-flex items-center gap-1 transition-all group-hover:gap-2.5">
-                      بخوان <ArrowRight className="size-3.5" />
-                    </span>
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-
-        <p className="mt-8 flex items-center justify-center gap-2 text-[11px] tfaint">
-          <ShieldCheck className="size-3.5 text-emerald-400" />
-          فقط راهنمای واقعی درباره کفپوش چرمی گلدوزی — بدون محتوای نامرتبط.
-        </p>
+              </span>
+            </Link>
+          );
+        })}
       </div>
-    </>
+
+      <p className="mt-6 flex items-center gap-2 text-[11px] tfaint">
+        <ShieldCheck className="size-3.5 shrink-0 text-emerald-400" />
+        راهنمای خرید و نگهداری کفپوش، مستقیم از تجربهٔ کارگاه 50500.
+      </p>
+    </section>
   );
 }
 
@@ -141,7 +149,7 @@ export function BlogPost() {
         </div>
         <h1 className="text-2xl font-black leading-9 sm:text-[1.9rem] sm:leading-[2.2rem]">{post.title}</h1>
         <p className="mt-3 text-sm leading-8 tdim">{post.excerpt}</p>
-        <img src={post.image} alt="" className="mt-7 w-full rounded-[2rem] border bd object-cover" style={{ maxHeight: 420 }} />
+        <img src={post.image} alt="" loading="lazy" decoding="async" className="mt-7 w-full rounded-[2rem] border bd object-cover" style={{ maxHeight: 420 }} />
         <div className="mt-8 grid gap-5 text-sm leading-9 tdim sm:text-[15px]">
           {post.body.map((p, i) => (
             <p key={i}>{p}</p>

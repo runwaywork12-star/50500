@@ -1,4 +1,6 @@
 import { getProducts, type Product } from "./catalog";
+import { SITE } from "@/data/content";
+import { leatherById, threadById } from "@/lib/options";
 
 /* ------------------------------------------------------------------ *
  * A small, self-contained demo store for the admin panel.
@@ -280,21 +282,53 @@ function seed(): AdminState {
 export const DEFAULT_STATE: AdminState = seed();
 
 const PW_KEY = "50500_admin_pw_v1";
+const DEFAULT_ADMIN_PASSWORDS = new Set(["Admin@50500", "50500admin", "admin50500"]);
+export const DEFAULT_ADMIN_EMAIL = "ceo@50500.shop";
 
-/** Demo admin password, editable from پنل ← تنظیمات. Persists in
-    localStorage so a refresh keeps the owner's chosen password. */
-export function getAdminPassword(): string {
+/** SHA-256 (Web Crypto, secure contexts) with a synchronous FNV-1a fallback
+    so login still works in insecure previews (file:// without subtle crypto). */
+async function digest(text: string): Promise<string> {
   try {
-    const saved = localStorage.getItem(PW_KEY);
-    return typeof saved === "string" && saved.trim() ? saved : "50500admin";
+    if (typeof crypto !== "undefined" && crypto.subtle) {
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+      return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+    }
   } catch {
-    return "50500admin";
+    /* fall through to the fallback */
   }
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return `fnv-${(h >>> 0).toString(16)}`;
 }
 
-export function setAdminPassword(next: string): void {
+/** Verifies a password against the stored digest. Legacy builds stored the
+    plaintext directly; on the first successful login it is migrated to a hash. */
+export async function verifyAdminPassword(plain: string): Promise<boolean> {
+  let stored: string | null = null;
   try {
-    localStorage.setItem(PW_KEY, next.trim());
+    const raw = localStorage.getItem(PW_KEY);
+    stored = typeof raw === "string" && raw.trim() ? raw : null;
+  } catch {
+    stored = null;
+  }
+  if (!stored) return DEFAULT_ADMIN_PASSWORDS.has(plain.trim());
+  const prefix = stored.startsWith("sha256:") ? "sha256:" : stored.startsWith("fnv-") ? "fnv-" : null;
+  if (prefix) return (await digest(plain)) === stored.slice(prefix.length);
+  // Legacy plaintext entry from an older build: verify, then upgrade to a hash.
+  if (plain === stored) {
+    await setAdminPassword(plain);
+    return true;
+  }
+  return false;
+}
+
+/** Stores only the digest of the password — never the password itself. */
+export async function setAdminPassword(next: string): Promise<void> {
+  try {
+    localStorage.setItem(PW_KEY, `sha256:${await digest(next.trim())}`);
   } catch {
     /* storage unavailable */
   }
@@ -557,23 +591,191 @@ export function downloadCSV(filename: string, csv: string) {
   URL.revokeObjectURL(a.href);
 }
 
-function printHtml(title: string, body: string) {
-  const win = window.open("", "_blank", "width=820,height=900");
+/* ------------------------------------------------------------------ *
+ * Printing: every value is HTML-escaped (customer names/notes are user
+ * input). Both documents share the 50500 brand header and print on A5:
+ * the sales invoice (فاکتور فروش) and the shipping label (برچسب ارسال).
+ * ------------------------------------------------------------------ */
+
+function htmlEsc(value: unknown): string {
+  return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+}
+
+const PAYMENT_TEXT: Record<AdminOrder["payment"], string> = {
+  paid: "پرداخت شده",
+  pending: "در انتظار پرداخت",
+  cod: "پرداخت در محل",
+  refunded: "بازگشت وجه",
+};
+
+const statusName = (id: string) => ORDER_STATUS.find((s) => s.id === id)?.name ?? id;
+
+/** Deterministic SVG barcode for order / tracking codes (decorative). */
+function barcodeSvg(code: string, height = 42): string {
+  const bars: string[] = [];
+  let x = 0;
+  for (const ch of String(code)) {
+    const n = ch.charCodeAt(0);
+    for (let k = 0; k < 3; k++) {
+      const w = 1 + ((n >> (k * 2)) % 3);
+      const g = 1 + ((n >> k) % 2);
+      bars.push(`<rect x="${x}" y="0" width="${w}" height="${height}" fill="#15171c"/>`);
+      x += w + g;
+    }
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${x} ${height}" preserveAspectRatio="none" style="width:100%;height:${height}px;display:block" aria-hidden="true">${bars.join("")}</svg>`;
+}
+
+function printDoc(title: string, pageCss: string, body: string) {
+  const win = window.open("", "_blank", "width=760,height=980");
   if (!win) return;
-  win.document.write(`<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>${title}</title>
-  <style>body{font-family:Tahoma,Arial,sans-serif;margin:24px;color:#111}h1{font-size:20px;margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #ddd;padding:8px;text-align:right;font-size:13px}th{background:#f5f5f5}.muted{color:#666;font-size:12px}.box{border:1px solid #ccc;border-radius:12px;padding:14px;margin-top:12px}.total{font-size:16px;font-weight:bold}.label{border:2px dashed #333;padding:18px;border-radius:12px;font-size:15px;line-height:2}@media print{button{display:none}}</style></head><body>${body}<p class="muted" style="margin-top:24px">50500.shop · فروشگاه کفپوش چرمی گلدوزی اختصاصی خودرو</p><script>window.onload=()=>{window.print();}</script></body></html>`);
+  win.document.write(`<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>${htmlEsc(title)}</title><style>${pageCss}</style></head><body>${body}<script>window.onload=function(){setTimeout(function(){window.print();},250);};</script></body></html>`);
   win.document.close();
 }
 
+const BASE_CSS = `
+*{box-sizing:border-box}
+body{font-family:Tahoma,Vazirmatn,Arial,sans-serif;color:#15171c;margin:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.muted{color:#6b7280}
+.band{display:flex;justify-content:space-between;align-items:center;gap:12px;background:linear-gradient(135deg,#15171c,#262d3a);color:#fff;border-radius:10px;padding:9px 12px}
+.band .name{font-size:21px;font-weight:900;letter-spacing:.01em;line-height:1.2}
+.band .name span{color:#ff8f45}
+.band .tag{font-size:8.5px;color:#cbd5e1;margin-top:2px}
+.band .left{text-align:left}
+.band .doc{font-size:13px;font-weight:900}
+.band .meta{font-size:9px;color:#e2e8f0;margin-top:2px}
+.band .meta b{color:#ffb27a}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{border:1px solid #e5e7eb;border-radius:7px;padding:3px 8px;font-size:9.5px;background:#fafafa}
+.chip b{color:#15171c}
+.chip.ok{border-color:#86efac;background:#ecfdf3;color:#166534}
+.chip.warn{border-color:#fcd34d;background:#fffbeb;color:#92400e}
+.chip.brand{border-color:#ffb27a;background:#fff3ea;color:#b8450a}
+.bc{margin-top:10px;border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px;background:#fafafa}
+.bc .cap{font-size:8.5px;color:#6b7280;text-align:center}
+.bc .code{font-family:ui-monospace,Consolas,monospace;letter-spacing:.18em;font-size:10px;text-align:center;margin-top:2px}
+.foot{margin-top:12px;border-top:1px dashed #cbd5e1;padding-top:6px;font-size:8.8px;color:#6b7280;display:flex;justify-content:space-between;gap:8px}
+.signrow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.signbox{border:1px dashed #cbd5e1;border-radius:8px;min-height:36px;display:flex;align-items:flex-end;justify-content:center;padding:4px;font-size:9px;color:#6b7280;background:#fff}
+`;
+
+const INVOICE_CSS = `${BASE_CSS}
+@page{size:A5 portrait;margin:9mm}
+.inv{font-size:10.5px;line-height:1.7}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px}
+.card{border:1px solid #e5e7eb;border-radius:9px;padding:6px 9px;min-height:74px}
+.card h3{margin:0 0 3px;font-size:9.5px;font-weight:900;color:#c2410c;letter-spacing:.03em}
+.card p{margin:0;font-size:10px}
+table{width:100%;border-collapse:collapse;margin-top:9px}
+th{background:#15171c;color:#fff;font-size:9.5px;font-weight:700;padding:5px 6px;text-align:right}
+th.c,td.c{text-align:center;white-space:nowrap}
+td{border-bottom:1px solid #eef0f3;padding:5px 6px;vertical-align:top;font-size:10px}
+td .sub{color:#6b7280;font-size:8.8px;margin-top:1px}
+.totals{margin-top:10px;margin-inline-start:auto;width:70%;border:1px solid #e5e7eb;border-radius:10px;padding:7px 11px;background:#fafafa;font-size:10px}
+.totals div{display:flex;justify-content:space-between;padding:2px 0}
+.totals .grand{border-top:2px solid #15171c;margin-top:4px;padding-top:5px;font-size:12.5px;font-weight:900}
+.totals .grand b{color:#c2410c}
+`;
+
+const LABEL_CSS = `${BASE_CSS}
+@page{size:A5 portrait;margin:9mm}
+.lbl{font-size:10.5px;line-height:1.7}
+.recipient{margin-top:9px;border:1.5px solid #15171c;border-radius:10px;padding:8px 10px;background:#fff}
+.recipient .rname{font-size:15px;font-weight:900}
+.recipient .rphone{font-size:13px;font-weight:900;color:#c2410c;margin-top:2px}
+.recipient .raddr{font-size:10px;color:#374151;margin-top:4px;line-height:1.9}
+.meta-row{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:8px}
+.meta-row .cell{border:1px solid #e5e7eb;border-radius:8px;padding:5px 8px;background:#fafafa;font-size:9.5px}
+.meta-row .cell .k{color:#6b7280;font-size:8.5px}
+.meta-row .cell .v{font-weight:800;margin-top:1px}
+.items-list{margin-top:8px;border:1px solid #e5e7eb;border-radius:10px;padding:6px 11px;background:#fafafa;font-size:9.5px}
+.items-list .row{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px dashed #eef0f3}
+.items-list .row:last-child{border-bottom:0}
+.sender{margin-top:8px;border:1px solid #e5e7eb;border-radius:9px;padding:6px 9px;font-size:9.5px;background:#fff}
+.sender h4{margin:0 0 3px;font-size:9.5px;font-weight:900;color:#c2410c;letter-spacing:.03em}
+.sender p{margin:0;font-size:9.5px}
+`;
+
 export function printInvoice(o: AdminOrder) {
-  const rows = o.items.map((it) => `<tr><td>${it.title}${it.leather ? `<div class="muted">چرم ${it.leather}${it.thread ? ` · گلدوزی ${it.thread}` : ""}</div>` : ""}</td><td>${it.qty}</td><td>${money(it.price)}</td><td>${money(it.price * it.qty)}</td></tr>`).join("");
   const date = new Date(o.createdAt).toLocaleDateString("fa-IR");
-  printHtml(`فاکتور ${o.code}`, `<h1>فاکتور فروش</h1><div class="muted">شماره سفارش: <b>${o.code}</b> · تاریخ: ${date}</div>
-  <div class="box"><b>خریدار:</b> ${o.customer} · ${o.phone}<br><b>نشانی:</b> ${o.province}، ${o.city}${o.address ? `، ${o.address}` : ""}${o.postalCode ? ` · کد پستی ${o.postalCode}` : ""}</div>
-  <table><thead><tr><th>کالا</th><th>تعداد</th><th>قیمت واحد</th><th>جمع</th></tr></thead><tbody>${rows}</tbody></table>
-  <div class="box"><div>جمع کالاها: ${money(o.subtotal)}</div>${o.discount ? `<div>تخفیف: ${money(o.discount)}</div>` : ""}<div>هزینه ارسال (${shippingLabel(o.shippingMethod)}): ${o.shipping ? money(o.shipping) : "رایگان"}</div><div class="total">مبلغ کل: ${money(o.total)} تومان</div></div>`);
+  const rows = o.items
+    .map((it) => {
+      const options = [it.leather ? `چرم ${leatherById(it.leather).name}` : "", it.thread ? `گلدوزی ${threadById(it.thread).name}` : ""].filter(Boolean).join(" · ");
+      return `<tr><td>${htmlEsc(it.title)}${options ? `<div class="sub">${htmlEsc(options)}</div>` : ""}</td><td class="c">${htmlEsc(it.qty)}</td><td class="c">${htmlEsc(money(it.price))}</td><td class="c">${htmlEsc(money(it.price * it.qty))}</td></tr>`;
+    })
+    .join("");
+  const address = [o.province, o.city, o.address].filter(Boolean).join("، ");
+  const body = `<div class="inv">
+  <div class="band">
+    <div><div class="name">50500<span>.shop</span></div><div class="tag">کفپوش چرمی گلدوزی پنج‌بعدی اختصاصی خودرو</div></div>
+    <div class="left"><div class="doc">فاکتور فروش</div><div class="meta">شماره سفارش: <b dir="ltr">${htmlEsc(o.code)}</b></div><div class="meta">تاریخ: ${htmlEsc(date)}</div></div>
+  </div>
+  <div class="chips">
+    <span class="chip brand">وضعیت: <b>${htmlEsc(statusName(o.status))}</b></span>
+    <span class="chip ${o.payment === "paid" ? "ok" : o.payment === "pending" ? "warn" : ""}">پرداخت: <b>${htmlEsc(PAYMENT_TEXT[o.payment] ?? o.payment)}</b></span>
+    <span class="chip">ارسال: <b>${htmlEsc(shippingLabel(o.shippingMethod))}</b></span>
+    ${o.tracking ? `<span class="chip">کد رهگیری: <b dir="ltr">${htmlEsc(o.tracking)}</b></span>` : ""}
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>فروشنده</h3><p><b>${htmlEsc(SITE.name)}</b></p><p dir="ltr" style="text-align:right">${htmlEsc(SITE.phone)}</p><p>${htmlEsc(SITE.email)}</p><p class="muted">${htmlEsc(SITE.address)}</p></div>
+    <div class="card"><h3>خریدار</h3><p><b>${htmlEsc(o.customer)}</b></p><p dir="ltr" style="text-align:right">${htmlEsc(o.phone)}</p><p>${htmlEsc(address)}</p>${o.postalCode ? `<p class="muted">کد پستی: <span dir="ltr">${htmlEsc(o.postalCode)}</span></p>` : ""}</div>
+  </div>
+  <table><thead><tr><th>کالا</th><th class="c">تعداد</th><th class="c">قیمت واحد</th><th class="c">جمع</th></tr></thead><tbody>${rows}</tbody></table>
+  <div class="totals">
+    <div><span>جمع کالاها</span><span>${htmlEsc(money(o.subtotal))}</span></div>
+    ${o.discount ? `<div><span>تخفیف</span><span>−${htmlEsc(money(o.discount))}</span></div>` : ""}
+    <div><span>هزینه ارسال</span><span>${o.shipping ? htmlEsc(money(o.shipping)) : "رایگان"}</span></div>
+    <div class="grand"><span>مبلغ کل</span><span><b>${htmlEsc(money(o.total))}</b> تومان</span></div>
+  </div>
+  <div class="bc">${barcodeSvg(o.code)}<div class="code" dir="ltr">${htmlEsc(o.code)}</div><div class="cap">کد سفارش</div></div>
+  <div class="foot"><span>گارانتی ۱۲ ماه تعویض · ${htmlEsc(SITE.hours)}</span><span dir="ltr">${htmlEsc(SITE.phone)}</span></div>
+</div>`;
+  printDoc(`فاکتور ${o.code}`, `${INVOICE_CSS}`, body);
 }
 
 export function printLabel(o: AdminOrder) {
-  printHtml(`برچسب ارسال ${o.code}`, `<div class="label"><b>گیرنده:</b> ${o.customer}<br><b>تلفن:</b> ${o.phone}<br><b>نشانی:</b> ${o.province}، ${o.city}${o.address ? `، ${o.address}` : ""}<br>${o.postalCode ? `<b>کد پستی:</b> ${o.postalCode}<br>` : ""}<b>کد سفارش:</b> ${o.code}${o.tracking ? `<br><b>کد رهگیری:</b> ${o.tracking}` : ""}<br><b>فرستنده:</b> 50500.shop</div>`);
+  const date = new Date(o.createdAt).toLocaleDateString("fa-IR");
+  const address = [o.province, o.city, o.address].filter(Boolean).join("، ");
+  const itemLines = o.items
+    .map((it) => `<div class="row"><span>${htmlEsc(it.title)} ×${htmlEsc(it.qty)}</span><b dir="ltr">${htmlEsc(money(it.price * it.qty))}</b></div>`)
+    .join("");
+  const body = `<div class="lbl">
+  <div class="band">
+    <div><div class="name">50500<span>.shop</span></div><div class="tag">کفپوش چرمی گلدوزی پنج‌بعدی اختصاصی خودرو</div></div>
+    <div class="left"><div class="doc">برچسب ارسال</div><div class="meta">شماره سفارش: <b dir="ltr">${htmlEsc(o.code)}</b></div><div class="meta">تاریخ: ${htmlEsc(date)}</div></div>
+  </div>
+  <div class="chips">
+    <span class="chip brand">${htmlEsc(shippingLabel(o.shippingMethod))}</span>
+    <span class="chip ${o.payment === "paid" ? "ok" : o.payment === "pending" ? "warn" : ""}">${htmlEsc(PAYMENT_TEXT[o.payment] ?? o.payment)}</span>
+    <span class="chip">${htmlEsc(o.items.reduce((s, i) => s + i.qty, 0))} قلم کالا</span>
+    <span class="chip">مبلغ کل: <b>${htmlEsc(money(o.total))} تومان</b></span>
+  </div>
+  <div class="recipient">
+    <div class="rname">${htmlEsc(o.customer)}</div>
+    <div class="rphone" dir="ltr" style="text-align:right">${htmlEsc(o.phone)}</div>
+    <div class="raddr">${htmlEsc(address)}</div>
+    ${o.postalCode ? `<div class="raddr muted">کد پستی: <span dir="ltr">${htmlEsc(o.postalCode)}</span></div>` : ""}
+    ${o.notes ? `<div class="raddr muted">یادداشت خریدار: ${htmlEsc(o.notes)}</div>` : ""}
+  </div>
+  <div class="meta-row">
+    <div class="cell"><div class="k">وضعیت سفارش</div><div class="v">${htmlEsc(statusName(o.status))}</div></div>
+    <div class="cell"><div class="k">فرستنده</div><div class="v">${htmlEsc(SITE.name)}</div></div>
+    <div class="cell"><div class="k">تلفن پشتیبانی</div><div class="v" dir="ltr">${htmlEsc(SITE.phone)}</div></div>
+    <div class="cell"><div class="k">ساعات ارسال</div><div class="v">${htmlEsc(SITE.hours)}</div></div>
+  </div>
+  <div class="items-list">${itemLines}</div>
+  <div class="bc">${barcodeSvg(o.code)}<div class="code" dir="ltr">${htmlEsc(o.code)}</div><div class="cap">کد سفارش — هنگام تحویل نشان دهید</div></div>
+  ${o.tracking ? `<div class="bc">${barcodeSvg(o.tracking)}<div class="code" dir="ltr">${htmlEsc(o.tracking)}</div><div class="cap">کد رهگیری پست</div></div>` : ""}
+  <div class="sender">
+    <h4>فرستنده</h4>
+    <p><b>${htmlEsc(SITE.name)}</b> · ${htmlEsc(SITE.address)}</p>
+    <p dir="ltr" style="text-align:right">${htmlEsc(SITE.phone)} · ${htmlEsc(SITE.email)}</p>
+  </div>
+  <div class="signrow">
+    <div class="signbox">امضای گیرنده</div>
+    <div class="signbox">مهر و امضای فرستنده</div>
+  </div>
+  <div class="foot"><span>گارانتی ۱۲ ماه تعویض · ${htmlEsc(SITE.hours)}</span><span dir="ltr">${htmlEsc(SITE.phone)}</span></div>
+</div>`;
+  printDoc(`برچسب ارسال ${o.code}`, `${LABEL_CSS}`, body);
 }

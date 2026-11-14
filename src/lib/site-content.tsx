@@ -184,6 +184,8 @@ export function loadSiteContent(): SiteContent {
   }
 }
 
+const CONTENT_EVENT = "50500:content";
+
 export function saveSiteContent(content: SiteContent) {
   pushSetting("site_content", content);
   try {
@@ -191,6 +193,8 @@ export function saveSiteContent(content: SiteContent) {
   } catch {
     /* storage unavailable: keep in memory */
   }
+  // Tell the mounted provider so the storefront and editors see the change immediately.
+  window.dispatchEvent(new CustomEvent<SiteContent>(CONTENT_EVENT, { detail: content }));
 }
 
 export function resetSiteContent() {
@@ -230,6 +234,12 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     saveSiteContent(content);
   }, [content]);
+
+  useEffect(() => {
+    const onChange = (event: Event) => setContent((event as CustomEvent<SiteContent>).detail);
+    window.addEventListener(CONTENT_EVENT, onChange);
+    return () => window.removeEventListener(CONTENT_EVENT, onChange);
+  }, []);
 
   const update = useCallback((patch: Partial<SiteContent>) => setContent((c) => ({ ...c, ...patch })), []);
   const updateHero = useCallback((patch: Partial<SiteContent["hero"]>) => setContent((c) => ({ ...c, hero: { ...c.hero, ...patch } })), []);

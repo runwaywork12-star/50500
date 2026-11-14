@@ -85,16 +85,20 @@ export function Breadcrumbs({ items }: { items: { href?: string; label: string }
   );
 }
 
-export function PageHero({ eyebrow, title, desc, children }: { eyebrow?: string; title: ReactNode; desc?: string; children?: ReactNode }) {
+export function PageHero({ eyebrow, title, desc, children }: { eyebrow?: string; title?: ReactNode; desc?: string; children?: ReactNode }) {
   return (
     <section className="relative overflow-hidden border-b bd">
-      <div className="grid-bg pointer-events-none absolute inset-0 opacity-50 [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]" />
-      <div className="pointer-events-none absolute -top-32 right-1/3 h-72 w-72 rounded-full bg-brand-500/20 blur-[110px]" />
-      <div className="container-x relative py-7 sm:py-11 lg:py-16">
-        {children}
-        {eyebrow && <p className="mt-3 text-[11px] font-bold text-brand-400 sm:mt-4 sm:text-xs">{eyebrow}</p>}
-        <h1 className="mt-2 text-[1.5rem] font-black leading-tight sm:text-3xl lg:text-4xl xl:text-5xl">{title}</h1>
-        {desc && <p className="mt-2.5 max-w-2xl text-[13px] leading-7 tdim sm:mt-4 sm:text-sm sm:leading-8">{desc}</p>}
+      <div className="grid-bg pointer-events-none absolute inset-0 opacity-40 [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]" />
+      <div className="pointer-events-none absolute -top-40 left-1/2 h-72 w-[36rem] -translate-x-1/2 rounded-full bg-brand-500/15 blur-[110px]" />
+      <div className="container-x relative flex flex-col items-center py-8 text-center sm:py-10 lg:py-12">
+        {children && <div className="flex justify-center">{children}</div>}
+        {eyebrow && (
+          <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-brand-500/30 bg-brand-500/10 px-3 py-1 text-[11px] font-bold text-brand-300">
+            <span className="size-1.5 rounded-full bg-brand-400" /> {eyebrow}
+          </span>
+        )}
+        <h1 className="mt-3 text-[1.6rem] font-black leading-tight sm:text-3xl lg:text-[2.6rem]">{title}</h1>
+        {desc && <p className="mt-3 max-w-xl text-[13px] leading-7 tdim sm:text-sm sm:leading-8">{desc}</p>}
       </div>
     </section>
   );

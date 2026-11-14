@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
  ArrowLeft,
  Check,
@@ -16,7 +16,7 @@ import { getOrder, markOrderPaid, type Order } from "@/lib/cart";
 import { ORDER_STATUSES, SHIPPING_METHODS, PAYMENT_METHODS, SITE } from "@/data/content";
 import { cn, fa, faDate, maskPhone, money } from "@/lib/format";
 import { getControlState, type GatewayConfig } from "@/lib/control-center";
-import { LIVE_GATEWAY_IDS, startGatewayPay } from "@/lib/gateways";
+import { LIVE_GATEWAY_IDS, startGatewayPay, zarinpalVerify } from "@/lib/gateways";
 
 const TONE: Record<string, string> = {
  amber: "bg-amber-400/15 text-amber-300 border-amber-400/30",
@@ -174,12 +174,14 @@ function THREAD_NAME(id: string) {
  return ({ red: "قرمز", orange: "نارنجی", gold: "طلایی", cream: "کرم", brown: "قهوه‌ای", white: "سفید", blue: "آبی", black: "مشکی" } as Record<string, string>)[id] ?? id;
 }
 
+export const PENDING_PAY_KEY = "50500_pending_pay";
+
+type PendingPay = { code: string; amountIRT: number; gateway: string; authority: string };
+
 export function PayPage() {
  const { code } = useParams();
  const order = useMemo(() => getOrder(code ?? ""), [code]);
  const navigate = useNavigate();
- const [card, setCard] = useState("");
- const [busy, setBusy] = useState(false);
  const [gatewayBusy, setGatewayBusy] = useState<string | null>(null);
  const [gatewayError, setGatewayError] = useState("");
  const paidCode = order?.paymentStatus === "paid" ? order.code : null;
@@ -201,14 +203,16 @@ export function PayPage() {
 
  if (paidCode) return null;
 
- // Live gateways enabled from the admin panel (Zarinpal / Bank Mellat Pay Iran).
  const gateways: GatewayConfig[] = getControlState().gateways.filter((g) => g.enabled && (LIVE_GATEWAY_IDS as string[]).includes(g.id));
 
  const startGateway = async (gw: GatewayConfig) => {
   setGatewayError("");
   setGatewayBusy(gw.id);
   try {
-   const res = await startGatewayPay(gw, order.total);
+   const res = await startGatewayPay(gw, order.total, order.code);
+   // The callback page reads this back to verify exactly this payment.
+   const pending: PendingPay = { code: order.code, amountIRT: order.total, gateway: gw.id, authority: res.reference ?? "" };
+   localStorage.setItem(PENDING_PAY_KEY, JSON.stringify(pending));
    window.location.assign(res.url);
   } catch (err) {
    setGatewayError(err instanceof Error ? err.message : "اتصال به درگاه ناموفق بود.");
@@ -216,38 +220,26 @@ export function PayPage() {
   }
  };
 
- const pay = () => {
-  if (card.replace(/\D/g, "").length < 12) return;
-  setBusy(true);
-  setTimeout(() => {
-   markOrderPaid(order.code);
-   navigate(`/order/${order.code}`);
-  }, 1200);
- };
-
  return (
   <>
-   <PageHero eyebrow="درگاه پرداخت" title={<>پرداخت سفارش <span dir="ltr" className="text-gradient">#{order.code}</span></>} desc="پرداخت در صفحه رسمی بانک انجام می‌شود؛ اطلاعات کارت شما هرگز وارد این سایت نمی‌شود." />
+   <PageHero eyebrow="درگاه پرداخت" title={<>پرداخت سفارش <span dir="ltr" className="text-gradient">#{order.code}</span></>} desc="پرداخت در صفحه رسمی درگاه انجام می‌شود؛ اطلاعات کارت شما در این سایت ثبت نمی‌شود." />
    <div className="container-x py-10">
     <div className="mx-auto grid max-w-lg gap-5 rounded-[2rem] border bd p-8" style={{ background: "var(--surface-1)" }}>
      <div className="flex items-center justify-between">
       <span className="flex items-center gap-2 text-sm font-black"><CreditCard className="size-5 text-brand-400" /> درگاه پرداخت 50500</span>
-      <span className="rounded-full bg-amber-400/15 px-3 py-1 text-[10px] font-black text-amber-300">{gateways.length === 0 ? "Sandbox" : "درگاه فعال"}</span>
+      <span className={cn("rounded-full px-3 py-1 text-[10px] font-black", gateways.length ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-400/15 text-amber-300")}>
+       {gateways.length ? "درگاه فعال" : "درگاه غیرفعال"}
+      </span>
      </div>
      <div>
       <p className="text-xs tfaint">مبلغ قابل پرداخت</p>
       <p className="mt-1 text-3xl font-black">{money(order.total)} <span className="text-sm tdim">تومان</span></p>
      </div>
 
-     {gateways.length > 0 && (
+     {gateways.length > 0 ? (
       <div className="grid gap-2">
        {gateways.map((gw) => (
-        <button
-         key={gw.id}
-         onClick={() => void startGateway(gw)}
-         disabled={gatewayBusy !== null}
-         className="btn btn-primary w-full justify-between py-3.5 text-sm disabled:opacity-60"
-        >
+        <button key={gw.id} onClick={() => void startGateway(gw)} disabled={gatewayBusy !== null} className="btn btn-primary w-full justify-between py-3.5 text-sm disabled:opacity-60">
          <span>پرداخت با {gw.name}</span>
          <span className="flex items-center gap-2">
           {gw.mode === "sandbox" && <span className="rounded-full bg-black/20 px-2 py-0.5 text-[10px] font-bold">آزمایشی</span>}
@@ -256,32 +248,68 @@ export function PayPage() {
         </button>
        ))}
        {gatewayError && <p className="rounded-xl bg-rose-500/10 px-3 py-2 text-[11px] font-bold leading-6 text-rose-400">{gatewayError}</p>}
-       <p className="text-center text-[10px] leading-5 tfaint">
-        با کلیک روی درگاه، درخواست آغاز پرداخت بر اساس مستندات درگاه (زرین‌پال zap.ir/apiv2 یا PaymentStartRequest بانک ملت) ارسال و شما به صفحه بانکی هدایت می‌شوید.
-       </p>
+      </div>
+     ) : (
+      <div className="rounded-2xl border border-dashed bd p-4 text-xs leading-7 tdim" style={{ background: "var(--field)" }}>
+       درگاه آنلاین هنوز فعال نشده است. سفارش شما ثبت شده و برای پرداخت کارت‌به‌کارت یا در محل، با شما هماهنگ می‌شود.
+       <Link to={`/order/${order.code}`} className="mt-3 block font-black text-brand-300 hover:underline">مشاهده جزئیات سفارش</Link>
       </div>
      )}
-
-     <div className="rounded-2xl border border-dashed bd p-4" style={{ background: "var(--field)" }}>
-      <p className="text-xs font-black tdim">شبیه‌ساز پرداخت (تست بدون کسر مبلغ)</p>
-      <label className="mt-3 grid gap-1.5">
-       <span className="text-xs font-bold tdim">شماره کارت (تست)</span>
-       <input
-        className="input font-mono"
-        dir="ltr"
-        inputMode="numeric"
-        placeholder="6037-9911-2233-4455"
-        value={card}
-        onChange={(e) => setCard(e.target.value.replace(/[^0-9-]/g, "").slice(0, 19))}
-       />
-      </label>
-      <button onClick={pay} disabled={busy || card.replace(/\D/g, "").length < 12} className="btn btn-ghost mt-3 w-full py-3 text-sm">
-       {busy ? "در حال اتصال به درگاه..." : `تسویه تستی ${money(order.total)} تومان`}
-      </button>
-      <p className="mt-2 text-center text-[10px] tfaint">با کلیک روی تسویه تستی، سفارش شما «پرداخت‌شده» ثبت می‌شود.</p>
-     </div>
     </div>
    </div>
   </>
-  );
+ );
+}
+
+/** Bank return page: /#/pay/callback?Authority=…&Status=OK */
+export function PayCallback() {
+ const [params] = useSearchParams();
+ const navigate = useNavigate();
+ const [message, setMessage] = useState("در حال تأیید پرداخت…");
+ const [failed, setFailed] = useState(false);
+ const started = useRef(false);
+
+ useEffect(() => {
+  if (started.current) return;
+  started.current = true;
+  void (async () => {
+   const fail = (text: string) => {
+    localStorage.removeItem(PENDING_PAY_KEY);
+    setFailed(true);
+    setMessage(text);
+   };
+   let pending: PendingPay | null = null;
+   try {
+    pending = JSON.parse(localStorage.getItem(PENDING_PAY_KEY) ?? "null") as PendingPay | null;
+   } catch {
+    pending = null;
+   }
+   const authority = params.get("Authority") ?? "";
+   if (!pending) return fail("اطلاعات پرداخت پیدا نشد. اگر مبلغی کسر شده، با پشتیبانی تماس بگیرید.");
+   if (params.get("Status") !== "OK" || !authority) return fail("پرداخت توسط شما لغو شد یا انجام نشد. مبلغی کسر نشده است.");
+   if (pending.authority && pending.authority !== authority) return fail("کد پرداخت با درخواست ثبت‌شده مطابقت ندارد.");
+   const current = pending;
+   const gw = getControlState().gateways.find((g) => g.id === current.gateway);
+   if (!gw) return fail("درگاه پرداخت در پنل مدیریت پیدا نشد.");
+   const res = await zarinpalVerify({
+    merchantId: gw.fields.merchantId ?? "",
+    amountIRT: current.amountIRT,
+    authority,
+    sandbox: gw.mode === "sandbox",
+   });
+   if (!res.ok) return fail(`تأیید پرداخت ناموفق بود: ${res.error}`);
+   markOrderPaid(current.code);
+   localStorage.removeItem(PENDING_PAY_KEY);
+   navigate(`/order/${current.code}`, { replace: true });
+  })();
+ }, [params, navigate]);
+
+ return (
+  <>
+   <PageHero eyebrow="بازگشت از درگاه" title={failed ? "پرداخت تأیید نشد" : "تأیید پرداخت"} desc={message} />
+   <div className="container-x grid place-items-center gap-4 py-12 text-center">
+    {failed && <Link to="/track" className="btn btn-primary px-6 py-3 text-sm">پیگیری سفارش</Link>}
+   </div>
+  </>
+ );
 }

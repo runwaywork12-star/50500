@@ -34,10 +34,12 @@ export function HeroSlider({ variant }: { variant: "desktop" | "mobile" }) {
         <img
           key={i}
           src={src}
+          loading={i === index ? "eager" : "lazy"}
+          fetchPriority={i === index ? "high" : "low"}
+          decoding="async"
           alt="کفپوش چرمی گلدوزی 50500 در کابین خودرو"
           className={"hero-slide" + (i === index ? " is-active" : "")}
           draggable={false}
-          loading={i === 0 ? "eager" : "lazy"}
         />
       ))}
       <div className="hero-slides-nav">

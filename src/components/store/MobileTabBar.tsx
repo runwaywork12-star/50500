@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { CarFront, ChevronLeft, Home, LayoutGrid, Phone, Search, ShoppingBag, Sparkles, UserRound, UserPlus, X } from "lucide-react";
+import { CarFront, ChevronLeft, Home, LayoutGrid, Phone, Search, ShoppingBag, Sparkles, UserRound, X } from "lucide-react";
 import { ThemeLink as Link } from "@/components/ThemeLink";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth.tsx";
@@ -34,6 +34,8 @@ export function MobileTabBar() {
   }, [sheet]);
 
   const active = (path: string) => (path === "/" ? pathname === "/" : pathname.startsWith(path));
+  const accountActive = user ? active("/account") : ["/login", "/register", "/forgot"].some(active);
+  const accountLabel = user ? "حساب من" : "ورود / ثبت‌نام";
   const scrollToFinder = () => {
     if (pathname !== "/") {
       navigate("/");
@@ -101,27 +103,23 @@ export function MobileTabBar() {
             </span>
             سبد خرید
           </Link>
-          {user ? (
-            <Link href="/account" className={tabClass(active("/account"))} aria-label="حساب من">
-              <span className="mobile-tab-icon">
+          <Link
+            href={user ? "/account" : "/login"}
+            className={tabClass(accountActive)}
+            aria-label={accountLabel}
+            aria-current={accountActive ? "page" : undefined}
+          >
+            <span className="mobile-tab-icon">
+              {user ? (
                 <span className="grid size-5 place-items-center rounded-full bg-gradient-to-br from-brand-400 to-brand-700 text-[10px] font-black text-white">
                   {user.name.trim().slice(0, 1)}
                 </span>
-              </span>
-              حساب من
-            </Link>
-          ) : (
-            <>
-              <Link href="/login" className={tabClass(active("/login") || active("/register"))} aria-label="ورود">
-                <span className="mobile-tab-icon"><UserRound className="size-5" /></span>
-                ورود
-              </Link>
-              <Link href="/register" className={tabClass(active("/register"))} aria-label="ثبت‌نام">
-                <span className="mobile-tab-icon"><UserPlus className="size-5" /></span>
-                ثبت‌نام
-              </Link>
-            </>
-          )}
+              ) : (
+                <UserRound className="size-5" />
+              )}
+            </span>
+            <span className="whitespace-nowrap">{accountLabel}</span>
+          </Link>
         </div>
       </nav>
 
@@ -168,7 +166,7 @@ export function MobileTabBar() {
                 return (
                   <Link key={group.id} href={`/products?group=${group.id}`} className="flex items-center gap-2.5 rounded-2xl border bd p-2.5 transition soft-h">
                     <span className="size-11 shrink-0 overflow-hidden rounded-xl" style={{ background: "var(--muted-surface)" }}>
-                      <img src={group.image} alt="" className="size-full object-cover" />
+                      <img src={group.image} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
                     </span>
                     <span className="min-w-0">
                       <b className="block truncate text-xs">{group.shortName}</b>

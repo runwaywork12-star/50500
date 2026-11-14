@@ -22,12 +22,17 @@ function SlideRail({
   compact?: boolean;
 }) {
   const rail = useRef<HTMLDivElement>(null);
-  const [edge, setEdge] = useState<"start" | "middle" | "end">("start");
+  const [edge, setEdge] = useState<"none" | "start" | "middle" | "end">("none");
 
   const measure = useCallback(() => {
     const el = rail.current;
     if (!el) return;
     const max = el.scrollWidth - el.clientWidth;
+    // Everything fits on screen: hide both arrows.
+    if (max <= 6) {
+      setEdge("none");
+      return;
+    }
     const x = Math.abs(el.scrollLeft);
     setEdge(x < 6 ? "start" : x >= max - 6 ? "end" : "middle");
   }, []);
@@ -58,10 +63,10 @@ function SlideRail({
       <div ref={rail} className={cn("mat-rail", compact && "mat-rail-compact")} dir="rtl" role="listbox" aria-label={label} data-edge={edge}>
         {children}
       </div>
-      <button type="button" className="mat-nav mat-nav-start" onClick={() => slide(-1)} disabled={edge === "start"} aria-label="قبلی">
+      <button type="button" className="mat-nav mat-nav-start" onClick={() => slide(-1)} disabled={edge === "start" || edge === "none"} aria-label="قبلی">
         <ChevronRight className="size-4" />
       </button>
-      <button type="button" className="mat-nav mat-nav-end" onClick={() => slide(1)} disabled={edge === "end"} aria-label="بعدی">
+      <button type="button" className="mat-nav mat-nav-end" onClick={() => slide(1)} disabled={edge === "end" || edge === "none"} aria-label="بعدی">
         <ChevronLeft className="size-4" />
       </button>
     </div>

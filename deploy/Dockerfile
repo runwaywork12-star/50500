@@ -23,7 +23,8 @@ RUN mkdir -p /data/uploads && chown -R app:app /data /app
 USER app
 ENV PORT=8080 STATIC_DIR=/app/dist STORAGE_DIR=/data/uploads
 EXPOSE 8080
+# Uses $PORT so the check follows whatever port the host (e.g. Liara) injects.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD curl -fsS http://127.0.0.1:8080/api/health || exit 1
+  CMD curl -fsS "http://127.0.0.1:${PORT:-8080}/api/health" || exit 1
 ENTRYPOINT ["/sbin/tini","--"]
 CMD ["sh","-c","node server/src/migrate.mjs && node server/src/index.mjs"]

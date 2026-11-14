@@ -17,18 +17,23 @@ import { Breadcrumbs, PageHero, Stars } from "@/components/ui";
 import { carArtSvg } from "@/components/store/CarArt";
 import { getProduct, getProducts, type Product } from "@/lib/catalog";
 import { REVIEWS } from "@/data/content";
-import { LeatherGrain } from "@/components/store/Swatches";
+
 import { MatDesigner } from "@/components/store/MatDesigner";
 import { StitchPreview } from "@/components/store/StitchPreview";
 import { useCart } from "@/lib/cart";
 import { cn, discountPercent, fa, faDate, money } from "@/lib/format";
 import { leatherById, threadById } from "@/lib/options";
 import { getSubItems } from "@/lib/product-overrides";
+import { useSiteContent } from "@/lib/site-content";
+import { carImageFor } from "@/lib/car-images";
+import { ManagedImage } from "@/components/ManagedImage";
 
 
 function ProductDetailHero({ product }: { product: Product }) {
   const brand = product.brandName ?? "کفپوش اختصاصی";
   const model = product.modelName ?? "";
+  const { content } = useSiteContent();
+  const carPhoto = carImageFor(content.imageSlots, product.brandSlug ?? undefined, product.modelSlug ?? undefined);
   const hash = (product.brandSlug ?? "").length * 7 + (product.modelSlug ?? "").length * 3;
   const startYear = 1392 + (hash % 8);
   const years = `${fa(startYear)} تا ${fa(1404)}`;
@@ -45,7 +50,11 @@ function ProductDetailHero({ product }: { product: Product }) {
         />
         <div className="pdv-panel" dir="ltr">
           <div className="pdv-media">
-            <div className="pdv-art" role="img" aria-label={`${brand} ${model}`} dangerouslySetInnerHTML={{ __html: carArtSvg(model || brand || "") }} />
+            {carPhoto ? (
+              <ManagedImage src={carPhoto} alt={`${brand} ${model}`} className="pdv-art-img" />
+            ) : (
+              <div className="pdv-art" role="img" aria-label={`${brand} ${model}`} dangerouslySetInnerHTML={{ __html: carArtSvg(model || brand || "") }} />
+            )}
             <span className="pdv-model-badge">{brand}{model ? ` ${model}` : ""}</span>
           </div>
           <div className="pdv-copy" dir="rtl">
@@ -178,20 +187,25 @@ export default function ProductDetail() {
      <ChevronLeft className="size-4 rotate-180" /> بازگشت
     </button>
 
-    <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
-     {/* gallery */}
-     <div>
-      <div className="relative aspect-[4/3] overflow-hidden rounded-[1.4rem] border bd sm:aspect-square sm:rounded-[2rem]" style={{ background: "var(--muted-surface)" }}>
-{isLeather && view === "preview" ? (
-                   <>
-                     <StitchPreview
-                       leather={L.hex}
-                       thread={T.hex}
-                       className="absolute inset-0"
-                       label={`پیش‌نمایش کفپوش با چرم ${L.name} و گلدوزی ${T.name}`}
-                     />
-                     <LeatherGrain />
-                     <span className="glass absolute start-3 top-3 flex max-w-[70%] items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold tdim sm:start-4 sm:top-4 sm:px-3 sm:py-1.5 sm:text-[11px]">
+     <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
+      {/* gallery */}
+      <div className="pd-gallery">
+       <div
+        className={cn(
+          "pd-preview relative aspect-[16/10] sm:aspect-square",
+          !(isLeather && view === "preview") && "overflow-hidden rounded-[1.4rem] border bd sm:rounded-[2rem]",
+        )}
+        style={isLeather && view === "preview" ? undefined : { background: "var(--muted-surface)" }}
+       >
+ {isLeather && view === "preview" ? (
+                    <>
+                      <StitchPreview
+                        leather={L.hex}
+                        thread={T.hex}
+                        className="absolute inset-0"
+                        label={`پیش‌نمایش کفپوش با چرم ${L.name} و گلدوزی ${T.name}`}
+                      />
+                      <span className="glass absolute start-3 top-3 flex max-w-[70%] items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold tdim sm:start-4 sm:top-4 sm:px-3 sm:py-1.5 sm:text-[11px]">
                        <span className="size-2 shrink-0 rounded-full bg-brand-400" /> پیش‌نمایش زنده
                      </span>
                      <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center px-14 sm:bottom-4">
@@ -221,9 +235,19 @@ export default function ProductDetail() {
          {product.category === "accessories" ? "لوازم جانبی" : product.brandName}
         </span>
        )}
-      </div>
-{(isLeather || gallery.length > 0) && (
-       <div className="mt-3 flex gap-2.5 overflow-x-auto pb-1 no-scrollbar">
+       </div>
+ {isLeather && (
+       <div className="mat-designer-compact mt-3 lg:hidden">
+        <MatDesigner
+          leather={leather}
+          thread={thread}
+          onLeather={(id) => { setLeather(id); setView("preview"); }}
+          onThread={(id) => { setThread(id); setView("preview"); }}
+        />
+       </div>
+ )}
+ {(isLeather || gallery.length > 0) && (
+       <div className="pd-thumbs mt-3 flex gap-2.5 overflow-x-auto pb-1 no-scrollbar">
          {isLeather && (
            <button
              type="button"
@@ -289,7 +313,7 @@ export default function ProductDetail() {
        </div>
 
        {isLeather && (
-        <div className="mt-4">
+        <div className="mt-4 hidden lg:block">
           <MatDesigner
             leather={leather}
             thread={thread}

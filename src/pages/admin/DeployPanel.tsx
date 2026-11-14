@@ -8,10 +8,11 @@ import { Badge, Card, Notice, PanelHeader, Toggle } from "./ControlUi";
 import { useControlState, gatewayIssues } from "@/lib/control-center";
 import { fa } from "@/lib/format";
 import {
-  auditChecks, bundleBytes, defaultEnv, deploymentBundle, downloadBundle, downloadText,
+  auditChecks, bundleBytes, defaultEnv, deploymentBundle, downloadText,
   probeHealth, randomSecret, readinessScore, renderEnv, DEPLOY_STEPS,
   type BundleFile, type Check, type EnvConfig, type Health, type ProbeState, type Severity,
 } from "@/lib/deploy";
+import { downloadDeployBundleZip, downloadFullProjectZip } from "@/lib/project-zip";
 
 const SEVERITY: Record<Severity, { label: string; cls: string }> = {
   critical: { label: "حیاتی", cls: "border-rose-400/40 bg-rose-400/12 text-rose-300" },
@@ -199,9 +200,22 @@ export function DeployPanel({ onToast }: { onToast: (message: string) => void })
 
   const grabBundle = async () => {
     setDownloading(0);
-    await downloadBundle(bundle, (i) => setDownloading(i));
-    setDownloading(-1);
-    onToast(`${fa(bundle.length)} فایل استقرار دانلود شد`);
+    try {
+      const count = await downloadDeployBundleZip(cfg, (done) => setDownloading(done));
+      onToast(`بسته استقرار (${fa(count)} فایل) در قالب ZIP دانلود شد`);
+    } finally {
+      setDownloading(-1);
+    }
+  };
+
+  const grabFullProject = async () => {
+    setDownloading(0);
+    try {
+      const count = await downloadFullProjectZip(cfg, (done) => setDownloading(done));
+      onToast(`کل پروژه + تنظیمات (${fa(count)} فایل) در قالب ZIP دانلود شد`);
+    } finally {
+      setDownloading(-1);
+    }
   };
 
   const file: BundleFile = bundle[Math.min(activeFile, bundle.length - 1)];
@@ -216,8 +230,11 @@ export function DeployPanel({ onToast }: { onToast: (message: string) => void })
             <button onClick={() => void runProbe()} disabled={probe.state === "loading"} className="btn btn-ghost px-4 py-2.5 text-xs disabled:opacity-60">
               {probe.state === "loading" ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCcw className="size-4" />} تست زنده سرور
             </button>
-            <button onClick={() => void grabBundle()} disabled={downloading >= 0} className="btn btn-primary px-4 py-2.5 text-xs disabled:opacity-60">
-              {downloading >= 0 ? <LoaderCircle className="size-4 animate-spin" /> : <Download className="size-4" />} دانلود بسته استقرار
+            <button onClick={() => void grabBundle()} disabled={downloading >= 0} className="btn btn-ghost px-4 py-2.5 text-xs disabled:opacity-60">
+              {downloading >= 0 ? <LoaderCircle className="size-4 animate-spin" /> : <Download className="size-4" />} بسته استقرار (ZIP)
+            </button>
+            <button onClick={() => void grabFullProject()} disabled={downloading >= 0} className="btn btn-primary px-4 py-2.5 text-xs disabled:opacity-60">
+              {downloading >= 0 ? <LoaderCircle className="size-4 animate-spin" /> : <Download className="size-4" />} دانلود کل پروژه + تنظیمات (ZIP)
             </button>
           </>
         }
@@ -582,8 +599,11 @@ export function DeployPanel({ onToast }: { onToast: (message: string) => void })
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <button onClick={() => void runProbe()} className="btn btn-ghost px-4 py-2.5 text-xs"><Play className="size-4" /> اجرای دوباره تست زنده</button>
-          <button onClick={() => void grabBundle()} disabled={downloading >= 0} className="btn btn-primary px-4 py-2.5 text-xs disabled:opacity-60">
-            <Rocket className="size-4" /> دریافت کامل بسته استقرار
+          <button onClick={() => void grabBundle()} disabled={downloading >= 0} className="btn btn-ghost px-4 py-2.5 text-xs disabled:opacity-60">
+            <Download className="size-4" /> بسته استقرار سرور (ZIP)
+          </button>
+          <button onClick={() => void grabFullProject()} disabled={downloading >= 0} className="btn btn-primary px-4 py-2.5 text-xs disabled:opacity-60">
+            <Rocket className="size-4" /> دانلود کل پروژه + تنظیمات (ZIP)
           </button>
         </div>
       </Card>

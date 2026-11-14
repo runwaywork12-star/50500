@@ -47,7 +47,7 @@ export default function Cart() {
         return (
          <div key={`${x.slug}-${x.leather ?? ""}-${x.thread ?? ""}`} className="flex gap-4 rounded-3xl border bd p-4" style={{ background: "var(--surface-1)" }}>
           <Link to={`/products/${x.slug}`} className="block size-24 shrink-0 overflow-hidden rounded-2xl" style={{ background: "var(--muted-surface)" }}>
-           <img src={x.leather ? matImageFor(x.leather) : x.product.image} alt={x.product.title} className="h-full w-full object-contain p-1" />
+           <img src={x.leather ? matImageFor(x.leather) : x.product.image} alt={x.product.title} loading="lazy" decoding="async" className="h-full w-full object-contain p-1" />
           </Link>
           <div className="min-w-0 flex-1">
            <div className="flex items-start justify-between gap-3">

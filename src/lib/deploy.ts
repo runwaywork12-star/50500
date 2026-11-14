@@ -10,6 +10,8 @@ import serverStorage from "../../server/src/storage.mjs?raw";
 import serverPayments from "../../server/src/payments.mjs?raw";
 import serverMigrate from "../../server/src/migrate.mjs?raw";
 import serverPkg from "../../server/package.json?raw";
+import liaraJson from "../../liara.json?raw";
+import liaraGuide from "../../LIARA.fa.md?raw";
 
 /* ------------------------------------------------------------------ *
  * Production readiness: live probes + a computed security audit.
@@ -342,6 +344,8 @@ export function deploymentBundle(cfg: EnvConfig): BundleFile[] {
   return [
     { path: ".env", content: renderEnv(cfg), lang: "ini", note: "متغیرهای محیطی تولیدشده با رمزهای تصادفی شما" },
     { path: ".env.example", content: envExample, lang: "ini", note: "الگوی متغیرها بدون رمز واقعی" },
+    { path: "liara.json", content: liaraJson, lang: "json", note: "پیکربندی آماده استقرار روی ابر لیارا + دیسک uploads" },
+    { path: "LIARA.fa.md", content: liaraGuide, lang: "md", note: "راهنمای گام‌به‌گام استقرار روی لیارا، دیتابیس و فضای ابری" },
     { path: "deploy/Dockerfile", content: dockerfile, lang: "docker", note: "بیلد دومرحله‌ای، کاربر غیر-root، healthcheck" },
     { path: "deploy/docker-compose.yml", content: compose, lang: "yaml", note: "Postgres + API + Nginx با شبکه خصوصی" },
     { path: "deploy/nginx.conf", content: nginxConf, lang: "nginx", note: "TLS، HSTS، rate limit، کش لبه" },

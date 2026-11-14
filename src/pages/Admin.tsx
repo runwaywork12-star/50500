@@ -39,9 +39,10 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import { Coins, FileText, Handshake, History, Layers, Pencil, UserCog } from "lucide-react";
+import { CarFront, Coins, FileText, Handshake, History, Layers, Pencil, UserCog } from "lucide-react";
 import { Logo } from "@/components/Logo";
-import { Bot, Globe, Image as ImageIcon, Rocket } from "lucide-react";
+import { Bot, Download, Globe, Image as ImageIcon, Rocket } from "lucide-react";
+import { downloadFullProjectZip } from "@/lib/project-zip";
 import { AffiliatesPanel, AuditPanel, ContentPanel, FinancePanel, StaffPanel, SystemPanel } from "@/pages/admin/Panels";
 import { PagesPanel } from "@/pages/admin/PagesPanel";
 import { MediaPanel } from "@/pages/admin/MediaPanel";
@@ -49,13 +50,14 @@ import { PaymentsPanel } from "@/pages/admin/PaymentsPanel";
 import { AgentsPanel } from "@/pages/admin/AgentsPanel";
 import { DeployPanel } from "@/pages/admin/DeployPanel";
 import { MediaPicker } from "@/pages/admin/MediaPicker";
+import { CarImagesPanel } from "@/pages/admin/CarImagesPanel";
 import { clearProductOverrides, setProductOverride } from "@/lib/product-overrides";
 import {
   ORDER_STATUS,
   customerRows,
   dateFa,
   downloadCSV,
-  getAdminPassword,
+  verifyAdminPassword,
   setAdminPassword,
 
   loadAdmin,
@@ -83,12 +85,14 @@ import {
   setSubItems,
   type CustomProduct,
 } from "@/lib/product-overrides";
+import { api, isServerMode } from "@/lib/api";
 import { cn, fa } from "@/lib/format";
 
 type Module =
   | "dashboard"
   | "orders"
   | "products"
+  | "car-images"
   | "customers"
   | "affiliates"
   | "coupons"
@@ -114,6 +118,7 @@ const NAV: { group: string; items: { id: Module; label: string; icon: typeof Lay
     items: [
       { id: "orders", label: "سفارش‌ها", icon: ClipboardList },
       { id: "products", label: "محصولات", icon: Package },
+      { id: "car-images", label: "تصاویر خودرو", icon: CarFront },
       { id: "customers", label: "مشتریان", icon: Users },
       { id: "affiliates", label: "همکاری در فروش", icon: Handshake },
       { id: "coupons", label: "کدهای تخفیف", icon: BadgePercent },
@@ -167,9 +172,20 @@ const PAY_TONE: Record<AdminOrder["payment"], string> = {
   refunded: "bg-rose-400/15 text-rose-300 border-rose-400/30",
 };
 
+const AUTH_KEY = "50500_admin_auth";
+/** Sessions expire after 12 hours; a stale or hand-crafted flag no longer works. */
+const AUTH_TTL_MS = 12 * 60 * 60 * 1000;
+
 function readAuth() {
   try {
-    return typeof window !== "undefined" && window.sessionStorage.getItem("50500_admin_auth") === "1";
+    const raw = typeof window !== "undefined" ? window.sessionStorage.getItem(AUTH_KEY) : null;
+    if (!raw) return false;
+    const issued = Number(raw);
+    if (!Number.isFinite(issued) || Date.now() - issued > AUTH_TTL_MS) {
+      window.sessionStorage.removeItem(AUTH_KEY);
+      return false;
+    }
+    return true;
   } catch {
     return false;
   }
@@ -177,8 +193,8 @@ function readAuth() {
 
 function writeAuth(value: boolean) {
   try {
-    if (value) window.sessionStorage.setItem("50500_admin_auth", "1");
-    else window.sessionStorage.removeItem("50500_admin_auth");
+    if (value) window.sessionStorage.setItem(AUTH_KEY, String(Date.now()));
+    else window.sessionStorage.removeItem(AUTH_KEY);
   } catch {
     /* storage unavailable */
   }
@@ -226,7 +242,7 @@ export default function Admin() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  if (!authed) return <Login onLogin={() => { sessionStorage.setItem("50500_admin_auth", "1"); setAuthed(true); }} />;
+  if (!authed) return <Login onLogin={() => { writeAuth(true); setAuthed(true); }} />;
 
   const pendingReviews = state.reviews.filter((r) => r.status === "pending").length;
   const pendingOrders = state.orders.filter((o) => o.status === "pending").length;
@@ -344,6 +360,17 @@ export default function Admin() {
             />
           </div>
           <div className="ms-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                notify("در حال ساخت فایل فشرده کل پروژه…");
+                void downloadFullProjectZip().then((n) => notify(`فایل ZIP کامل پروژه (${fa(n)} فایل) دانلود شد`));
+              }}
+              className="btn btn-primary !rounded-xl px-3 py-2 text-xs"
+              title="دانلود کل سورس پروژه + تنظیمات فعلی در یک فایل ZIP"
+            >
+              <Download className="size-4" /> دانلود پروژه (ZIP)
+            </button>
             <span className="hidden items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-bold text-emerald-300 sm:flex">
               <span className="size-1.5 rounded-full bg-emerald-400" /> پنل فعال
             </span>
@@ -361,6 +388,7 @@ export default function Admin() {
           {module === "products" && (
             <Products state={state} onChange={(products) => patch("products", products)} onToast={notify} onLog={onLog} />
           )}
+          {module === "car-images" && <CarImagesPanel onToast={notify} />}
           {module === "customers" && <Customers state={state} />}
           {module === "affiliates" && <AffiliatesPanel state={state} patch={patch} onToast={notify} onLog={onLog} />}
           {module === "coupons" && <Coupons state={state} onChange={(coupons) => patch("coupons", coupons)} onToast={notify} />}
@@ -386,9 +414,13 @@ export default function Admin() {
                   setState(loadAdmin());
                   notify("داده‌های نمایشی بازنشانی شد");
                 }}
-                onChangePassword={(pw) => {
-                  setAdminPassword(pw);
-                  sessionStorage.removeItem("50500_admin_auth");
+                onChangePassword={async (current, next) => {
+                  if (!(await verifyAdminPassword(current))) {
+                    notify("رمز فعلی درست نیست");
+                    return;
+                  }
+                  await setAdminPassword(next);
+                  writeAuth(false);
                   setAuthed(false);
                   notify("رمز عبور مدیر تغییر کرد؛ با رمز جدید دوباره وارد شوید");
                 }}
@@ -410,30 +442,123 @@ export default function Admin() {
 
 /* ------------------------------------ login ------------------------------------ */
 
+const LOCK_KEY = "50500_admin_lock";
+const MAX_ATTEMPTS = 5;
+const LOCK_MS = 30_000;
+
+function lockRemainingMs(): number {
+  try {
+    const raw = sessionStorage.getItem(LOCK_KEY);
+    if (!raw) return 0;
+    const { until } = JSON.parse(raw) as { until: number };
+    return Math.max(0, Number(until) - Date.now());
+  } catch {
+    return 0;
+  }
+}
+
+function bumpAttempt(): number {
+  try {
+    const raw = sessionStorage.getItem(LOCK_KEY);
+    const state = raw ? (JSON.parse(raw) as { count: number; until: number }) : { count: 0, until: 0 };
+    if (state.until && Date.now() < state.until) return MAX_ATTEMPTS;
+    state.count += 1;
+    if (state.count >= MAX_ATTEMPTS) {
+      state.until = Date.now() + LOCK_MS;
+      state.count = 0;
+      sessionStorage.setItem(LOCK_KEY, JSON.stringify(state));
+      return MAX_ATTEMPTS;
+    }
+    sessionStorage.setItem(LOCK_KEY, JSON.stringify(state));
+    return state.count;
+  } catch {
+    return 0;
+  }
+}
+
+function clearAttempts() {
+  try {
+    sessionStorage.removeItem(LOCK_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 function Login({ onLogin }: { onLogin: () => void }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [showPw, setShowPw] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [needTotp, setNeedTotp] = useState(false);
+  const [totp, setTotp] = useState("");
   const [resetMode, setResetMode] = useState(false);
+  const [curPw, setCurPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [newPw2, setNewPw2] = useState("");
 
-  const submit = () => {
-    if (password === getAdminPassword()) { onLogin(); return; }
-    setError("رمز نادرست است.");
+  const submit = async () => {
+    const wait = lockRemainingMs();
+    if (wait > 0) {
+      setError(`تلاش زیاد؛ ${fa(Math.ceil(wait / 1000))} ثانیه دیگر تلاش کنید.`);
+      return;
+    }
+    if (!password) {
+      setError("رمز عبور را وارد کنید.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      if (isServerMode()) {
+        const res = await api<{ needTotp?: boolean }>("/api/admin/login", {
+          method: "POST",
+          body: { email: "owner", password, ...(totp ? { totp } : {}) },
+        });
+        if (res?.needTotp) {
+          setNeedTotp(true);
+          setError("ورود دومرحله‌ای فعال است؛ کد ۶ رقمی برنامه احراز هویت را وارد کنید.");
+          return;
+        }
+        clearAttempts();
+        onLogin();
+        return;
+      }
+      if (await verifyAdminPassword(password)) {
+        clearAttempts();
+        onLogin();
+        return;
+      }
+      const attempts = bumpAttempt();
+      setError(attempts >= MAX_ATTEMPTS ? `تلاش زیاد؛ ${fa(LOCK_MS / 1000)} ثانیه قفل شد.` : "رمز نادرست است.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "ورود انجام نشد.");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  /* Owner forgot the demo password: build a new one right here. This is a
-     demo-only escape hatch — the real deployment uses ADMIN_PASSWORD env var
-     plus TOTP, so this path is never exposed publicly. */
-  const buildNewPassword = () => {
+  /* Changing the password always requires the current one — a password that
+     anyone can replace from the login screen would be no protection at all. */
+  const buildNewPassword = async () => {
+    if (!curPw) { setError("رمز فعلی را وارد کنید."); return; }
     if (newPw.length < 8) { setError("رمز جدید باید حداقل ۸ کاراکتر باشد."); return; }
     if (newPw !== newPw2) { setError("تکرار رمز با رمز جدید مطابقت ندارد."); return; }
-    setAdminPassword(newPw);
-    setPassword(newPw);
-    setResetMode(false);
-    setError("");
-    onLogin();
+    setBusy(true);
+    try {
+      if (!(await verifyAdminPassword(curPw))) {
+        setError("رمز فعلی درست نیست.");
+        return;
+      }
+      await setAdminPassword(newPw);
+      setPassword(newPw);
+      setCurPw("");
+      setResetMode(false);
+      setError("");
+      clearAttempts();
+      onLogin();
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <div dir="rtl" className="grid min-h-screen place-items-center p-4" style={{ background: "var(--bg)" }}>
@@ -448,7 +573,7 @@ function Login({ onLogin }: { onLogin: () => void }) {
 
           <label className="mt-5 grid gap-1.5">
             <span className="text-xs font-bold tdim">ایمیل مدیر</span>
-            <input className="input" dir="ltr" defaultValue="amir@50500.shop" />
+            <input className="input" dir="ltr" defaultValue="ceo@50500.shop" />
           </label>
           <label className="mt-3 grid gap-1.5">
             <span className="text-xs font-bold tdim">رمز عبور</span>
@@ -461,7 +586,7 @@ function Login({ onLogin }: { onLogin: () => void }) {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && submit()}
+                onKeyDown={(e) => { if (e.key === "Enter") void submit(); }}
               />
               <button
                 type="button"
@@ -473,10 +598,32 @@ function Login({ onLogin }: { onLogin: () => void }) {
               </button>
             </span>
           </label>
+          {needTotp && (
+            <label className="mt-3 grid gap-1.5">
+              <span className="text-xs font-bold tdim">کد ورود دومرحله‌ای</span>
+              <input
+                className="input"
+                dir="ltr"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="123456"
+                maxLength={6}
+                value={totp}
+                onChange={(e) => setTotp(e.target.value.replace(/\D/g, ""))}
+              />
+            </label>
+          )}
           {error && <p className="mt-2 text-[11px] font-bold text-rose-400">{error}</p>}
 
-          <button onClick={submit} className="btn btn-primary mt-5 w-full py-3 text-sm">
-            <ShieldCheck className="size-4" /> ورود به پنل
+          <button onClick={() => void submit()} disabled={busy} className="btn btn-primary mt-5 w-full py-3 text-sm disabled:opacity-60">
+            <ShieldCheck className="size-4" /> {busy ? "در حال بررسی…" : "ورود به پنل"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void downloadFullProjectZip()}
+            className="btn btn-ghost mt-2.5 w-full py-3 text-xs"
+          >
+            <Download className="size-4 text-brand-400" /> دانلود کامل پروژه + تنظیمات (ZIP)
           </button>
           <p className="mt-4 text-center text-[10px] leading-5 tfaint">در نسخه واقعی، ورود با رمز محیطی و تأیید دومرحله‌ای (TOTP) انجام می‌شود.</p>
 
@@ -485,8 +632,7 @@ function Login({ onLogin }: { onLogin: () => void }) {
               <summary className="cursor-pointer font-bold text-brand-300">راهنمای ورود و ساخت رمز جدید (کلیک کنید)</summary>
               <div className="mt-2 grid gap-1.5">
                 <p><b>آدرس:</b> <span dir="ltr" className="font-mono">/admin</span></p>
-                <p><b>ایمیل:</b> <span dir="ltr" className="font-mono">amir@50500.shop</span></p>
-                <p><b>رمز پیش‌فرض:</b> <span dir="ltr" className="font-mono">50500admin</span></p>
+                <p><b>ایمیل:</b> <span dir="ltr" className="font-mono">ceo@50500.shop</span></p>
                 <button
                   type="button"
                   onClick={() => { setResetMode(true); setError(""); }}
@@ -494,12 +640,22 @@ function Login({ onLogin }: { onLogin: () => void }) {
                 >
                   <KeyRound className="size-3.5" /> ساخت رمز جدید همین‌جا
                 </button>
-                <p className="tfaint">اگر رمز قبلی را فراموش کردی، رمز جدید بساز و وارد شو.</p>
+                <p className="tfaint">تغییر رمز نیازمند رمز فعلی است. اگر آن را فراموش کرده‌ای، داده‌های این مرورگر را پاک کن تا رمز پیش‌فرض دوباره فعال شود.</p>
               </div>
             </details>
           ) : (
             <div className="mt-3 grid gap-2 rounded-xl border border-brand-500/35 bg-brand-500/[0.07] px-3 py-3 text-[11px]" style={{ background: "var(--field)" }}>
-              <p className="font-black text-brand-300">ساخت رمز جدید برای پنل</p>
+              <p className="font-black text-brand-300">تغییر رمز پنل (نیازمند رمز فعلی)</p>
+              <input
+                className="input"
+                dir="ltr"
+                type="password"
+                placeholder="رمز فعلی"
+                value={curPw}
+                onChange={(e) => setCurPw(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") void buildNewPassword(); }}
+                autoComplete="current-password"
+              />
               <input
                 className="input"
                 dir="ltr"
@@ -507,7 +663,7 @@ function Login({ onLogin }: { onLogin: () => void }) {
                 placeholder="رمز جدید (حداقل ۸ کاراکتر)"
                 value={newPw}
                 onChange={(e) => setNewPw(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && buildNewPassword()}
+                onKeyDown={(e) => { if (e.key === "Enter") void buildNewPassword(); }}
                 autoComplete="new-password"
               />
               <input
@@ -521,7 +677,7 @@ function Login({ onLogin }: { onLogin: () => void }) {
                 autoComplete="new-password"
               />
               <div className="flex gap-2">
-                <button type="button" onClick={buildNewPassword} className="btn btn-primary flex-1 py-2.5 text-[11px]">
+                <button type="button" onClick={() => void buildNewPassword()} disabled={busy} className="btn btn-primary flex-1 py-2.5 text-[11px] disabled:opacity-60">
                   <KeyRound className="size-3.5" /> ذخیره و ورود
                 </button>
                 <button type="button" onClick={() => { setResetMode(false); setError(""); }} className="btn btn-ghost px-3 py-2.5 text-[11px]">
@@ -1678,7 +1834,7 @@ function SettingsPanel({
   onChange: (s: AdminState["settings"]) => void;
   onToast: (m: string) => void;
   onReset: () => void;
-  onChangePassword: (pw: string) => void;
+  onChangePassword: (current: string, next: string) => void | Promise<void>;
 }) {
   const [form, setForm] = useState(state.settings);
   const field = (k: keyof AdminState["settings"]) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -1748,20 +1904,23 @@ function SettingsPanel({
           <div className="rounded-2xl border border-brand-500/25 bg-brand-500/[0.07] p-5" style={{ background: "var(--surface-1)" }}>
             <h2 className="mb-3 flex items-center gap-2 text-sm font-black"><KeyRound className="size-4 text-brand-400" /> رمز پنل مدیریت</h2>
             <p className="rounded-xl border border-dashed bd px-3 py-2.5 text-[11px] leading-5 tdim">
-              رمز پیش‌فرض توضیح راهنمای ورود است. برای نسخه نمایشی قابل تغییر است؛ رمز جدید در همین مرورگر ذخیره می‌شود.
+              رمز فعلی لازم است. رمز به‌صورت هش‌شده ذخیره می‌شود و در هیچ‌جا به‌صورت متن ساده نگهداری نمی‌شود.
             </p>
             <div className="mt-3 grid gap-2">
+              <input id="admin-pw-cur" type="password" autoComplete="current-password" className="input" placeholder="رمز فعلی" />
               <input id="admin-pw" type="password" autoComplete="new-password" className="input" placeholder="رمز جدید (حداقل ۸ کاراکتر)" />
               <input id="admin-pw2" type="password" autoComplete="new-password" className="input" placeholder="تکرار رمز جدید" />
               <button
                 onClick={() => {
+                  const cur = (document.getElementById("admin-pw-cur") as HTMLInputElement)?.value ?? "";
                   const a = (document.getElementById("admin-pw") as HTMLInputElement)?.value ?? "";
                   const b = (document.getElementById("admin-pw2") as HTMLInputElement)?.value ?? "";
+                  if (!cur) { onToast("رمز فعلی را وارد کنید"); return; }
                   if (a !== b || a.length < 8) {
                     onToast(a !== b ? "رمزها مطابقت ندارند" : "رمز باید حداقل ۸ کاراکتر باشد");
                     return;
                   }
-                  onChangePassword(a);
+                  void onChangePassword(cur, a);
                 }}
                 className="btn btn-primary w-full py-2.5 text-[11px]"
               >

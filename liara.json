@@ -1,0 +1,19 @@
+{
+  "app": "shop50500",
+  "platform": "docker",
+  "port": 8080,
+  "build": {
+    "dockerfile": "./deploy/Dockerfile",
+    "cache": true
+  },
+  "disks": [
+    { "name": "uploads", "mountTo": "/data/uploads" }
+  ],
+  "healthCheck": {
+    "command": "CMD curl -fsS http://127.0.0.1:8080/api/health || exit 1",
+    "interval": 30,
+    "timeout": 10,
+    "retries": 3,
+    "startPeriod": 30
+  }
+}
